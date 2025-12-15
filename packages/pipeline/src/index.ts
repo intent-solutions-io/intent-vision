@@ -20,9 +20,13 @@ export * from './ingest/webhook/index.js';
 export * from './normalize/normalizer.js';
 export * from './store/metric-store.js';
 export * from './forecast/forecast-stub.js';
+export * from './forecast/statistical-forecast.js';
 export * from './anomaly/anomaly-stub.js';
+export * from './anomaly/ensemble-detector.js';
 export * from './alert/alert-emitter.js';
 export * from './observability/logger.js';
+export * from './eval/index.js';
+export * from './backends/index.js';
 
 // =============================================================================
 // Pipeline Orchestrator
