@@ -133,13 +133,17 @@ describe('ApiKeyManager', () => {
 
   describe('Key Management', () => {
     it('should list keys for an org', async () => {
-      await manager.createKey({ orgId: 'org-1', name: 'Key 1' });
-      await manager.createKey({ orgId: 'org-1', name: 'Key 2' });
-      await manager.createKey({ orgId: 'org-2', name: 'Key 3' });
+      const testId = `list-${Date.now()}`;
+      const org1 = `org-1-${testId}`;
+      const org2 = `org-2-${testId}`;
 
-      const org1Keys = await manager.listKeys('org-1');
+      await manager.createKey({ orgId: org1, name: 'Key 1' });
+      await manager.createKey({ orgId: org1, name: 'Key 2' });
+      await manager.createKey({ orgId: org2, name: 'Key 3' });
+
+      const org1Keys = await manager.listKeys(org1);
       expect(org1Keys).toHaveLength(2);
-      expect(org1Keys.every((k) => k.orgId === 'org-1')).toBe(true);
+      expect(org1Keys.every((k) => k.orgId === org1)).toBe(true);
     });
 
     it('should revoke a key', async () => {
