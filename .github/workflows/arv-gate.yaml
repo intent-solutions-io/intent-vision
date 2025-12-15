@@ -1,0 +1,69 @@
+name: ARV Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  arv-checks:
+    name: ARV Compliance Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for commit checks
+
+      - name: Check 000-docs flatness
+        run: |
+          echo "=== Checking 000-docs/ flatness ==="
+          ./scripts/ci/check-docs-flat.sh
+
+      - name: Check 6767 standards present
+        run: |
+          echo "=== Checking 6767 standards ==="
+          ./scripts/ci/check-standards-present.sh
+
+      - name: Check AAR template present
+        run: |
+          echo "=== Checking AAR template ==="
+          ./scripts/ci/check-aar-template.sh
+
+      - name: Check phase AARs exist
+        run: |
+          echo "=== Checking phase AARs ==="
+          ./scripts/ci/check-phase-aars.sh
+
+      - name: Check task IDs in recent commits
+        run: |
+          echo "=== Checking task IDs in commits ==="
+          ./scripts/ci/check-task-ids.sh
+
+      - name: Lint check (formatting baseline)
+        run: |
+          echo "=== Lint check ==="
+          ./scripts/ci/check-lint.sh
+
+      - name: Security scan (secrets/deps)
+        run: |
+          echo "=== Security scan ==="
+          ./scripts/ci/check-security.sh
+
+  summary:
+    name: ARV Summary
+    runs-on: ubuntu-latest
+    needs: arv-checks
+    if: always()
+
+    steps:
+      - name: Report status
+        run: |
+          if [ "${{ needs.arv-checks.result }}" == "success" ]; then
+            echo "✅ All ARV checks passed"
+          else
+            echo "❌ ARV checks failed"
+            exit 1
+          fi

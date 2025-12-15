@@ -1,0 +1,70 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+.pip-cache/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.next/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# Secrets (never commit)
+*.pem
+*.key
+credentials.json
+service-account*.json
+*-credentials.json
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Test coverage
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+
+# Beads (local cache, not source of truth)
+.beads/*.db
+.beads/*.db-wal
+.beads/*.db-shm
+
+# AgentFS (local databases)
+.agentfs/*.db
+.agentfs/*.db-wal
+.agentfs/*.db-shm
+.agentfs/tmp/
+
+# Keep these AgentFS items
+!.agentfs/snapshots/
+!.agentfs/config.yaml
