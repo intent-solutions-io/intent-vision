@@ -27,6 +27,7 @@ export * from './alert/alert-emitter.js';
 export * from './observability/logger.js';
 export * from './eval/index.js';
 export * from './backends/index.js';
+export * from './alert/index.js';
 
 // =============================================================================
 // Pipeline Orchestrator

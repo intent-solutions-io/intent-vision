@@ -11,6 +11,10 @@ export default defineConfig({
     environment: 'node',
     root: projectRoot,
     include: ['packages/pipeline/tests/**/*.test.ts'],
+    fileParallelism: false, // Run test files sequentially to avoid DB locking
+    sequence: {
+      shuffle: false,
+    },
   },
   resolve: {
     alias: {
