@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IntentVision Operator Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --border: #475569;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background-color: var(--bg-card);
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+    }
+
+    .status-dot.warning { background-color: var(--warning); }
+    .status-dot.error { background-color: var(--error); }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .card-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+
+    .card-value.success { color: var(--success); }
+    .card-value.warning { color: var(--warning); }
+    .card-value.error { color: var(--error); }
+
+    .card-change {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th,
+    .table td {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      background-color: var(--bg-card);
+    }
+
+    .table td {
+      font-size: 0.875rem;
+    }
+
+    .table tr:hover td {
+      background-color: var(--bg-card);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .badge-success { background-color: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .badge-warning { background-color: rgba(245, 158, 11, 0.2); color: var(--warning); }
+    .badge-error { background-color: rgba(239, 68, 68, 0.2); color: var(--error); }
+    .badge-info { background-color: rgba(59, 130, 246, 0.2); color: var(--accent); }
+
+    .button {
+      padding: 0.5rem 1rem;
+      background-color: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .button:hover { opacity: 0.9; }
+    .button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .api-key-input {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .api-key-input input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text-primary);
+      font-family: monospace;
+    }
+
+    .api-key-input input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    .error-message {
+      background-color: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .card-value { font-size: 2rem; }
+      .table { font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo">IntentVision</div>
+    <div class="header-status">
+      <div class="status-indicator">
+        <span class="status-dot" id="health-status"></span>
+        <span id="health-text">Checking...</span>
+      </div>
+      <span id="org-id" style="color: var(--text-secondary); font-size: 0.875rem;"></span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-title" style="margin-bottom: 1rem;">API Authentication</div>
+      <div class="api-key-input">
+        <input type="password" id="api-key" placeholder="Enter your API key (iv_...)" />
+        <button class="button" id="connect-btn">Connect</button>
+      </div>
+      <div id="auth-error" class="error-message" style="display: none;"></div>
+    </div>
+
+    <div id="dashboard-content" style="display: none;">
+      <div class="grid">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Metrics Ingested</span>
+          </div>
+          <div class="card-value" id="metrics-count">--</div>
+          <div class="card-change">Last 24 hours</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Active Alerts</span>
+          </div>
+          <div class="card-value warning" id="alerts-count">--</div>
+          <div class="card-change">Currently firing</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Forecasts Generated</span>
+          </div>
+          <div class="card-value" id="forecasts-count">--</div>
+          <div class="card-change">Last 24 hours</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Anomalies Detected</span>
+          </div>
+          <div class="card-value error" id="anomalies-count">--</div>
+          <div class="card-change">Last 24 hours</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <h2 class="section-title">Recent Alerts</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Alert ID</th>
+              <th>Severity</th>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Triggered</th>
+            </tr>
+          </thead>
+          <tbody id="alerts-table">
+            <tr>
+              <td colspan="5" class="loading">No alerts to display</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">API Keys</h2>
+        <div style="margin-bottom: 1rem;">
+          <button class="button" id="create-key-btn">Create New Key</button>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Key ID</th>
+              <th>Name</th>
+              <th>Scopes</th>
+              <th>Created</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="keys-table">
+            <tr>
+              <td colspan="6" class="loading">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State
+    let apiKey = localStorage.getItem('intentvision_api_key') || '';
+    let orgId = '';
+
+    // DOM Elements
+    const apiKeyInput = document.getElementById('api-key');
+    const connectBtn = document.getElementById('connect-btn');
+    const authError = document.getElementById('auth-error');
+    const dashboardContent = document.getElementById('dashboard-content');
+    const healthStatus = document.getElementById('health-status');
+    const healthText = document.getElementById('health-text');
+    const orgIdEl = document.getElementById('org-id');
+
+    // Initialize
+    if (apiKey) {
+      apiKeyInput.value = apiKey;
+      connect();
+    }
+
+    // Event listeners
+    connectBtn.addEventListener('click', connect);
+    apiKeyInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') connect();
+    });
+
+    document.getElementById('create-key-btn')?.addEventListener('click', createKey);
+
+    // Check health
+    async function checkHealth() {
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        healthStatus.className = 'status-dot';
+        healthText.textContent = 'Connected';
+        return true;
+      } catch {
+        healthStatus.className = 'status-dot error';
+        healthText.textContent = 'Disconnected';
+        return false;
+      }
+    }
+
+    // Connect with API key
+    async function connect() {
+      apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        showError('Please enter an API key');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v1/org', {
+          headers: { 'X-API-Key': apiKey }
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          showError(data.error || 'Authentication failed');
+          return;
+        }
+
+        const data = await res.json();
+        orgId = data.org_id;
+        localStorage.setItem('intentvision_api_key', apiKey);
+
+        hideError();
+        orgIdEl.textContent = `Org: ${orgId}`;
+        dashboardContent.style.display = 'block';
+
+        // Load dashboard data
+        loadDashboard();
+      } catch (err) {
+        showError('Connection failed. Is the API server running?');
+      }
+    }
+
+    // Load dashboard data
+    async function loadDashboard() {
+      await checkHealth();
+      await loadKeys();
+      // In production, these would load real data
+      document.getElementById('metrics-count').textContent = '12,345';
+      document.getElementById('alerts-count').textContent = '3';
+      document.getElementById('forecasts-count').textContent = '156';
+      document.getElementById('anomalies-count').textContent = '7';
+    }
+
+    // Load API keys
+    async function loadKeys() {
+      try {
+        const res = await fetch('/api/v1/keys', {
+          headers: { 'X-API-Key': apiKey }
+        });
+
+        if (!res.ok) {
+          document.getElementById('keys-table').innerHTML =
+            '<tr><td colspan="6">Failed to load keys</td></tr>';
+          return;
+        }
+
+        const data = await res.json();
+        const tbody = document.getElementById('keys-table');
+
+        if (!data.keys || data.keys.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6">No API keys found</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.keys.map(key => `
+          <tr>
+            <td><code>${key.key_id}</code></td>
+            <td>${key.name}</td>
+            <td>${key.scopes.join(', ')}</td>
+            <td>${new Date(key.created_at).toLocaleDateString()}</td>
+            <td>
+              <span class="badge ${key.enabled ? 'badge-success' : 'badge-error'}">
+                ${key.enabled ? 'Active' : 'Revoked'}
+              </span>
+            </td>
+            <td>
+              ${key.enabled ?
+                `<button class="button" onclick="revokeKey('${key.key_id}')" style="background: var(--error)">Revoke</button>` :
+                ''}
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load keys:', err);
+      }
+    }
+
+    // Create new API key
+    async function createKey() {
+      const name = prompt('Enter a name for this API key:');
+      if (!name) return;
+
+      try {
+        const res = await fetch('/api/v1/keys', {
+          method: 'POST',
+          headers: {
+            'X-API-Key': apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name, scopes: ['read', 'write'] })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          alert('Failed to create key: ' + data.error);
+          return;
+        }
+
+        alert(`Key created!\\n\\nRaw key (save this, it won't be shown again):\\n${data.raw_key}`);
+        loadKeys();
+      } catch (err) {
+        alert('Failed to create key: ' + err.message);
+      }
+    }
+
+    // Revoke API key
+    async function revokeKey(keyId) {
+      if (!confirm('Are you sure you want to revoke this key?')) return;
+
+      try {
+        const res = await fetch(`/api/v1/keys/${keyId}`, {
+          method: 'DELETE',
+          headers: { 'X-API-Key': apiKey }
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          alert('Failed to revoke key: ' + data.error);
+          return;
+        }
+
+        loadKeys();
+      } catch (err) {
+        alert('Failed to revoke key: ' + err.message);
+      }
+    }
+
+    // Error helpers
+    function showError(message) {
+      authError.textContent = message;
+      authError.style.display = 'block';
+    }
+
+    function hideError() {
+      authError.style.display = 'none';
+    }
+
+    // Periodic health check
+    setInterval(checkHealth, 30000);
+    checkHealth();
+  </script>
+</body>
+</html>

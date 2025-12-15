@@ -8,9 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "npm run test:contracts && npm run test:pipeline",
+    "test": "npm run test:contracts && npm run test:pipeline && npm run test:operator",
     "test:contracts": "npm test --workspace=@intentvision/contracts",
     "test:pipeline": "npx vitest run -c packages/pipeline/vitest.config.ts",
+    "test:operator": "npx vitest run -c packages/operator/vitest.config.ts",
     "pipeline": "npx tsx packages/pipeline/src/cli.ts",
     "pipeline:synthetic": "npx tsx packages/pipeline/src/cli.ts --synthetic",
     "db:migrate": "npx tsx db/migrate.ts run",
