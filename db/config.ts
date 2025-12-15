@@ -82,9 +82,12 @@ export async function runMigrations(migrationsDir: string = 'db/migrations'): Pr
     )
   `);
 
-  // Get already applied migrations
+  // Get already applied migrations (normalize names by removing .sql suffix)
   const result = await client.execute('SELECT name FROM _migrations');
-  const appliedSet = new Set(result.rows.map(r => r.name as string));
+  const appliedSet = new Set(result.rows.map(r => {
+    const name = r.name as string;
+    return name.endsWith('.sql') ? name : `${name}.sql`;
+  }));
 
   // Get migration files
   const files = readdirSync(migrationsDir)

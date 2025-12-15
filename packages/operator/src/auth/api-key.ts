@@ -11,6 +11,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { createHash, randomBytes } from 'crypto';
 import { getClient } from '../../../../db/config.js';
 
 // =============================================================================
@@ -263,26 +264,13 @@ export class ApiKeyManager {
   // ==========================================================================
 
   private generateSecureToken(): string {
-    // Generate a secure random token
-    // In production, use crypto.randomBytes
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let token = '';
-    for (let i = 0; i < 32; i++) {
-      token += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return token;
+    // Generate a cryptographically secure random token
+    return randomBytes(24).toString('base64url');
   }
 
   private hashKey(rawKey: string): string {
-    // Simple hash for demo purposes
-    // In production, use crypto.createHash('sha256')
-    let hash = 0;
-    for (let i = 0; i < rawKey.length; i++) {
-      const char = rawKey.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return `hash_${Math.abs(hash).toString(36)}`;
+    // SHA-256 hash for secure key storage
+    return createHash('sha256').update(rawKey).digest('hex');
   }
 }
 
