@@ -1,0 +1,104 @@
+{
+  "description": "Sample anomaly detection fixture for IntentVision contract testing",
+  "anomaly_detection_request": {
+    "request_id": "anomaly-req-001",
+    "org_id": "org-acme-corp",
+    "series": {
+      "org_id": "org-acme-corp",
+      "metric_key": "system.cpu.usage",
+      "dimensions": {
+        "region": "us-west-2",
+        "service": "api-gateway"
+      },
+      "data_points": [
+        { "timestamp": "2025-12-15T09:00:00.000Z", "value": 32.1 },
+        { "timestamp": "2025-12-15T09:05:00.000Z", "value": 35.4 },
+        { "timestamp": "2025-12-15T09:10:00.000Z", "value": 38.2 },
+        { "timestamp": "2025-12-15T09:15:00.000Z", "value": 92.7 },
+        { "timestamp": "2025-12-15T09:20:00.000Z", "value": 41.3 },
+        { "timestamp": "2025-12-15T09:25:00.000Z", "value": 44.8 },
+        { "timestamp": "2025-12-15T09:30:00.000Z", "value": 48.2 },
+        { "timestamp": "2025-12-15T09:35:00.000Z", "value": 52.1 },
+        { "timestamp": "2025-12-15T09:40:00.000Z", "value": 49.7 },
+        { "timestamp": "2025-12-15T09:45:00.000Z", "value": 46.3 }
+      ],
+      "metadata": {
+        "start_time": "2025-12-15T09:00:00.000Z",
+        "end_time": "2025-12-15T09:45:00.000Z",
+        "count": 10,
+        "resolution": "5m"
+      }
+    },
+    "options": {
+      "sensitivity": 0.8,
+      "method": "statistical",
+      "threshold": 0.7,
+      "include_context": true,
+      "context_window": 3
+    }
+  },
+  "anomaly_detection_response": {
+    "request_id": "anomaly-req-001",
+    "success": true,
+    "anomalies": [
+      {
+        "anomaly_id": "anom-001-20251215",
+        "timestamp": "2025-12-15T09:15:00.000Z",
+        "observed_value": 92.7,
+        "expected_value": 41.5,
+        "score": 0.94,
+        "type": "point",
+        "severity": "high",
+        "description": "CPU usage spike: observed 92.7% vs expected 41.5% (2.3 standard deviations above mean)",
+        "context": {
+          "before": [
+            { "timestamp": "2025-12-15T09:00:00.000Z", "value": 32.1 },
+            { "timestamp": "2025-12-15T09:05:00.000Z", "value": 35.4 },
+            { "timestamp": "2025-12-15T09:10:00.000Z", "value": 38.2 }
+          ],
+          "after": [
+            { "timestamp": "2025-12-15T09:20:00.000Z", "value": 41.3 },
+            { "timestamp": "2025-12-15T09:25:00.000Z", "value": 44.8 },
+            { "timestamp": "2025-12-15T09:30:00.000Z", "value": 48.2 }
+          ],
+          "statistics": {
+            "mean": 42.8,
+            "std_dev": 6.2,
+            "min": 32.1,
+            "max": 52.1
+          }
+        }
+      }
+    ],
+    "metadata": {
+      "detected_at": "2025-12-15T10:00:00.000Z",
+      "duration_ms": 45,
+      "input_points": 10,
+      "anomaly_count": 1,
+      "method": "statistical",
+      "sensitivity": 0.8
+    }
+  },
+  "anomaly_types_examples": {
+    "point": {
+      "description": "Single data point significantly different from expected",
+      "example_score": 0.94
+    },
+    "contextual": {
+      "description": "Value anomalous given surrounding context (time of day, week, etc.)",
+      "example_score": 0.75
+    },
+    "collective": {
+      "description": "Group of points anomalous together (e.g., sustained elevated values)",
+      "example_score": 0.82
+    },
+    "trend_change": {
+      "description": "Sudden change in the trend direction",
+      "example_score": 0.88
+    },
+    "level_shift": {
+      "description": "Sustained shift to a new baseline level",
+      "example_score": 0.79
+    }
+  }
+}

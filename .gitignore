@@ -41,6 +41,11 @@ service-account*.json
 logs/
 npm-debug.log*
 
+# Database files (local development)
+db/*.db
+db/*.db-wal
+db/*.db-shm
+
 # Test coverage
 coverage/
 .coverage

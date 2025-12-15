@@ -1,0 +1,133 @@
+{
+  "description": "Sample metrics fixture for IntentVision contract testing",
+  "canonical_metrics": [
+    {
+      "org_id": "org-acme-corp",
+      "metric_key": "system.cpu.usage",
+      "timestamp": "2025-12-15T10:00:00.000Z",
+      "value": 45.2,
+      "dimensions": {
+        "region": "us-west-2",
+        "service": "api-gateway",
+        "environment": "production"
+      },
+      "provenance": {
+        "source_id": "prometheus",
+        "source_ref": "prom-node-123",
+        "ingested_at": "2025-12-15T10:00:05.000Z",
+        "pipeline_version": "1.0.0",
+        "transformations": ["normalize", "dedupe"]
+      }
+    },
+    {
+      "org_id": "org-acme-corp",
+      "metric_key": "system.cpu.usage",
+      "timestamp": "2025-12-15T10:05:00.000Z",
+      "value": 52.8,
+      "dimensions": {
+        "region": "us-west-2",
+        "service": "api-gateway",
+        "environment": "production"
+      },
+      "provenance": {
+        "source_id": "prometheus",
+        "source_ref": "prom-node-124",
+        "ingested_at": "2025-12-15T10:05:05.000Z",
+        "pipeline_version": "1.0.0",
+        "transformations": ["normalize", "dedupe"]
+      }
+    },
+    {
+      "org_id": "org-acme-corp",
+      "metric_key": "business.revenue",
+      "timestamp": "2025-12-15T10:00:00.000Z",
+      "value": 15234.50,
+      "dimensions": {
+        "region": "us-west-2",
+        "product": "premium",
+        "channel": "web"
+      },
+      "provenance": {
+        "source_id": "custom-api",
+        "source_ref": "sales-api-456",
+        "ingested_at": "2025-12-15T10:01:00.000Z"
+      }
+    }
+  ],
+  "time_series": {
+    "org_id": "org-acme-corp",
+    "metric_key": "system.cpu.usage",
+    "dimensions": {
+      "region": "us-west-2",
+      "service": "api-gateway",
+      "environment": "production"
+    },
+    "data_points": [
+      { "timestamp": "2025-12-15T09:00:00.000Z", "value": 32.1 },
+      { "timestamp": "2025-12-15T09:05:00.000Z", "value": 35.4 },
+      { "timestamp": "2025-12-15T09:10:00.000Z", "value": 38.2 },
+      { "timestamp": "2025-12-15T09:15:00.000Z", "value": 42.7 },
+      { "timestamp": "2025-12-15T09:20:00.000Z", "value": 41.3 },
+      { "timestamp": "2025-12-15T09:25:00.000Z", "value": 44.8 },
+      { "timestamp": "2025-12-15T09:30:00.000Z", "value": 48.2 },
+      { "timestamp": "2025-12-15T09:35:00.000Z", "value": 52.1 },
+      { "timestamp": "2025-12-15T09:40:00.000Z", "value": 49.7 },
+      { "timestamp": "2025-12-15T09:45:00.000Z", "value": 46.3 },
+      { "timestamp": "2025-12-15T09:50:00.000Z", "value": 43.9 },
+      { "timestamp": "2025-12-15T09:55:00.000Z", "value": 45.2 },
+      { "timestamp": "2025-12-15T10:00:00.000Z", "value": 52.8 }
+    ],
+    "metadata": {
+      "start_time": "2025-12-15T09:00:00.000Z",
+      "end_time": "2025-12-15T10:00:00.000Z",
+      "count": 13,
+      "resolution": "5m"
+    }
+  },
+  "metric_batch": {
+    "batch_id": "batch-20251215-001",
+    "org_id": "org-acme-corp",
+    "metrics": [],
+    "metadata": {
+      "created_at": "2025-12-15T10:00:00.000Z",
+      "source": "prometheus",
+      "count": 0
+    }
+  },
+  "invalid_metrics": [
+    {
+      "_description": "Missing org_id",
+      "metric_key": "system.cpu.usage",
+      "timestamp": "2025-12-15T10:00:00.000Z",
+      "value": 45.2,
+      "dimensions": {},
+      "provenance": { "source_id": "test", "ingested_at": "2025-12-15T10:00:00.000Z" }
+    },
+    {
+      "_description": "Invalid timestamp",
+      "org_id": "org-test",
+      "metric_key": "system.cpu.usage",
+      "timestamp": "not-a-timestamp",
+      "value": 45.2,
+      "dimensions": {},
+      "provenance": { "source_id": "test", "ingested_at": "2025-12-15T10:00:00.000Z" }
+    },
+    {
+      "_description": "Non-numeric value",
+      "org_id": "org-test",
+      "metric_key": "system.cpu.usage",
+      "timestamp": "2025-12-15T10:00:00.000Z",
+      "value": "not-a-number",
+      "dimensions": {},
+      "provenance": { "source_id": "test", "ingested_at": "2025-12-15T10:00:00.000Z" }
+    },
+    {
+      "_description": "Missing provenance",
+      "org_id": "org-test",
+      "metric_key": "system.cpu.usage",
+      "timestamp": "2025-12-15T10:00:00.000Z",
+      "value": 45.2,
+      "dimensions": {}
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "description": "Sample alert fixture for IntentVision contract testing",
+  "alert_trigger": {
+    "alert_id": "alert-20251215-001",
+    "rule_id": "rule-cpu-threshold-001",
+    "org_id": "org-acme-corp",
+    "triggered_at": "2025-12-15T09:15:30.000Z",
+    "severity": "warning",
+    "status": "firing",
+    "trigger_type": "threshold",
+    "title": "High CPU Usage Detected",
+    "description": "CPU usage on api-gateway in us-west-2 exceeded 90% threshold",
+    "metric_context": {
+      "metric_key": "system.cpu.usage",
+      "dimensions": {
+        "region": "us-west-2",
+        "service": "api-gateway",
+        "environment": "production"
+      },
+      "current_value": 92.7,
+      "recent_values": [
+        { "timestamp": "2025-12-15T09:10:00.000Z", "value": 38.2 },
+        { "timestamp": "2025-12-15T09:15:00.000Z", "value": 92.7 }
+      ]
+    },
+    "trigger_details": {
+      "type": "threshold",
+      "operator": "gt",
+      "threshold": 90,
+      "actual_value": 92.7,
+      "duration_over_threshold_ms": 30000
+    },
+    "routing": {
+      "channels": [
+        {
+          "type": "slack",
+          "destination": "#ops-alerts",
+          "config": { "mention_group": "@oncall-team" }
+        },
+        {
+          "type": "email",
+          "destination": "ops@acme-corp.com"
+        }
+      ],
+      "escalation_policy": "standard-ops",
+      "dedup_key": "cpu-high-api-gateway-us-west-2"
+    },
+    "lifecycle": {
+      "triggered_at": "2025-12-15T09:15:30.000Z",
+      "notification_count": 1,
+      "last_notified_at": "2025-12-15T09:15:35.000Z"
+    }
+  },
+  "alert_rule": {
+    "rule_id": "rule-cpu-threshold-001",
+    "org_id": "org-acme-corp",
+    "name": "High CPU Alert",
+    "description": "Alert when CPU usage exceeds 90% for more than 30 seconds",
+    "enabled": true,
+    "metric_key": "system.cpu.usage",
+    "dimension_filters": {
+      "environment": "production"
+    },
+    "condition": {
+      "type": "threshold",
+      "operator": "gt",
+      "value": 90,
+      "duration_ms": 30000
+    },
+    "severity": "warning",
+    "routing": {
+      "channels": [
+        { "type": "slack", "destination": "#ops-alerts" },
+        { "type": "email", "destination": "ops@acme-corp.com" }
+      ],
+      "escalation_policy": "standard-ops"
+    },
+    "suppression": {
+      "dedup_window_ms": 300000,
+      "mute_windows": [
+        {
+          "start": "02:00",
+          "end": "06:00",
+          "days": [0, 6]
+        }
+      ]
+    }
+  },
+  "trigger_type_examples": {
+    "threshold": {
+      "type": "threshold",
+      "operator": "gt",
+      "threshold": 90,
+      "actual_value": 92.7
+    },
+    "anomaly": {
+      "type": "anomaly",
+      "anomaly": {
+        "anomaly_id": "anom-001",
+        "timestamp": "2025-12-15T09:15:00.000Z",
+        "observed_value": 92.7,
+        "expected_value": 41.5,
+        "score": 0.94,
+        "type": "point",
+        "severity": "high",
+        "description": "Anomalous CPU spike detected"
+      },
+      "detection_method": "statistical"
+    },
+    "forecast": {
+      "type": "forecast",
+      "predicted_value": 98.5,
+      "prediction_timestamp": "2025-12-15T10:30:00.000Z",
+      "confidence_interval": { "lower": 92.1, "upper": 100 },
+      "threshold_will_breach_at": "2025-12-15T10:25:00.000Z"
+    },
+    "rate_of_change": {
+      "type": "rate_of_change",
+      "rate": 15.2,
+      "rate_unit": "per_minute",
+      "max_allowed_rate": 10,
+      "window_ms": 60000
+    },
+    "missing_data": {
+      "type": "missing_data",
+      "expected_interval_ms": 60000,
+      "last_seen_at": "2025-12-15T09:00:00.000Z",
+      "missing_duration_ms": 900000
+    }
+  }
+}

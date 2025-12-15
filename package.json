@@ -1,0 +1,50 @@
+{
+  "name": "intentvision",
+  "version": "1.0.0",
+  "description": "Universal Prediction Engine: Connect sources → Normalize metrics → Forecast/anomaly → Explain → Alert/API/dashboard/agent.",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm run test:contracts",
+    "test:contracts": "npm test --workspace=@intentvision/contracts",
+    "pipeline": "npx tsx packages/pipeline/src/cli.ts",
+    "pipeline:synthetic": "npx tsx packages/pipeline/src/cli.ts --synthetic",
+    "db:migrate": "npx tsx db/migrate.ts run",
+    "db:status": "npx tsx db/migrate.ts status",
+    "arv": "./scripts/ci/arv-check.sh",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/intent-solutions-io/intentvision.git"
+  },
+  "keywords": [
+    "prediction",
+    "forecasting",
+    "anomaly-detection",
+    "time-series",
+    "metrics"
+  ],
+  "author": "Intent Solutions IO",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/intent-solutions-io/intentvision/issues"
+  },
+  "homepage": "https://github.com/intent-solutions-io/intentvision#readme",
+  "dependencies": {
+    "@libsql/client": "^0.15.15",
+    "agentfs-sdk": "^0.2.3",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

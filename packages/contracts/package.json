@@ -1,0 +1,44 @@
+{
+  "name": "@intentvision/contracts",
+  "version": "0.1.0",
+  "description": "IntentVision canonical data contracts for metrics, forecasting, anomaly detection, and alerts",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:ci": "node --import tsx --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "files": [
+    "dist",
+    "src",
+    "fixtures"
+  ],
+  "keywords": [
+    "intentvision",
+    "contracts",
+    "metrics",
+    "forecasting",
+    "anomaly-detection",
+    "alerts",
+    "time-series"
+  ],
+  "author": "IntentVision",
+  "license": "MIT",
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

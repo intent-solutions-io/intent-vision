@@ -18,7 +18,7 @@ fi
 
 # Check for consistent line endings (no CRLF)
 echo "Checking for CRLF line endings..."
-CRLF_FILES=$(find . -type f -name "*.md" -o -name "*.sh" -o -name "*.yaml" -o -name "*.yml" 2>/dev/null | xargs file 2>/dev/null | grep -c "CRLF" || true)
+CRLF_FILES=$(find . -type f \( -name "*.md" -o -name "*.sh" -o -name "*.yaml" -o -name "*.yml" -o -name "*.ts" -o -name "*.json" \) -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | xargs file 2>/dev/null | grep -c "CRLF" || true)
 if [ "$CRLF_FILES" -gt 0 ]; then
     echo "❌ FAIL: Found $CRLF_FILES files with CRLF line endings"
     ERRORS=$((ERRORS + 1))
@@ -35,7 +35,7 @@ done
 # Check YAML syntax (if yq or python available)
 echo "Checking YAML syntax..."
 if command -v python3 &>/dev/null; then
-    find . -name "*.yaml" -o -name "*.yml" 2>/dev/null | while read yaml; do
+    find . \( -name "*.yaml" -o -name "*.yml" \) -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null | while read yaml; do
         if ! python3 -c "import yaml; yaml.safe_load(open('$yaml'))" 2>/dev/null; then
             echo "❌ Invalid YAML: $yaml"
             ERRORS=$((ERRORS + 1))
