@@ -21,6 +21,7 @@ export * from './normalize/normalizer.js';
 export * from './store/metric-store.js';
 export * from './forecast/forecast-stub.js';
 export * from './forecast/statistical-forecast.js';
+export * from './forecast/nixtla-timegpt.js';
 export * from './anomaly/anomaly-stub.js';
 export * from './anomaly/ensemble-detector.js';
 export * from './alert/alert-emitter.js';
