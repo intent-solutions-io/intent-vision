@@ -156,8 +156,6 @@ describe('Preference Matching Logic', () => {
   // Integration tests against Firestore are in alerts-e2e tests
 
   describe('Severity Matching', () => {
-    const severities = ['info', 'warning', 'critical'] as const;
-
     it('should understand severity hierarchy', () => {
       // Critical is higher than warning, warning is higher than info
       const order = { info: 1, warning: 2, critical: 3 };
@@ -233,8 +231,19 @@ describe('Preference Matching Logic', () => {
 // =============================================================================
 
 describe('Dispatch Result Types', () => {
+  // Type for dispatch results
+  interface DispatchResult {
+    success: boolean;
+    channelId: string;
+    channelType: string;
+    destination: string;
+    messageId?: string;
+    error?: string;
+    sentAt: string;
+  }
+
   it('should define success result structure', () => {
-    const successResult = {
+    const successResult: DispatchResult = {
       success: true,
       channelId: 'ch_123',
       channelType: 'email',
@@ -249,7 +258,7 @@ describe('Dispatch Result Types', () => {
   });
 
   it('should define failure result structure', () => {
-    const failureResult = {
+    const failureResult: DispatchResult = {
       success: false,
       channelId: 'ch_123',
       channelType: 'email',

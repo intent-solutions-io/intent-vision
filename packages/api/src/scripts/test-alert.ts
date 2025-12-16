@@ -35,7 +35,7 @@ import {
   getDispatcherStatus,
   type AlertEvent,
 } from '../notifications/index.js';
-import { getClientInfo, resetFirestore } from '../firestore/client.js';
+import { getClientInfo } from '../firestore/client.js';
 
 // =============================================================================
 // CLI Argument Parsing

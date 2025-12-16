@@ -3,15 +3,17 @@
  *
  * Phase 1: Firestore-backed MVP Core
  * Phase 7: Cloud Firestore Wiring + Live Tests
- * Beads Tasks: intentvision-002, intentvision-olu
+ * Phase 9: Staging Cloud Run + Firestore + Cloud Smoke Tests
+ * Beads Tasks: intentvision-002, intentvision-olu, intentvision-vf7
  *
  * Initializes Firebase Admin SDK and provides Firestore access.
  * Supports both real GCP Firestore (default) and emulator (opt-in).
  *
  * Configuration via environment variables:
  * - INTENTVISION_GCP_PROJECT_ID: GCP project ID (required for cloud)
+ * - INTENTVISION_FIRESTORE_PROJECT_ID: Alias for GCP project (preferred)
  * - INTENTVISION_FIRESTORE_DB: Firestore database name (default: "(default)")
- * - INTENTVISION_ENV: Environment prefix for collection isolation (dev/stage/prod)
+ * - INTENTVISION_ENV: Environment prefix for collection isolation (local/dev/staging/prod)
  * - GOOGLE_APPLICATION_CREDENTIALS: Path to service account JSON (local dev)
  * - FIRESTORE_EMULATOR_HOST: Emulator host (optional, enables emulator mode)
  */
@@ -55,7 +57,9 @@ const state: FirestoreClientState = {
  */
 export function getFirestoreConfig(): FirestoreConfig {
   return {
-    projectId: process.env.INTENTVISION_GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT,
+    projectId: process.env.INTENTVISION_FIRESTORE_PROJECT_ID ||
+               process.env.INTENTVISION_GCP_PROJECT_ID ||
+               process.env.GOOGLE_CLOUD_PROJECT,
     databaseId: process.env.INTENTVISION_FIRESTORE_DB || '(default)',
     environment: process.env.INTENTVISION_ENV || 'dev',
     useEmulator: !!process.env.FIRESTORE_EMULATOR_HOST,

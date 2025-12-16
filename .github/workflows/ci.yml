@@ -1,5 +1,5 @@
 # IntentVision CI/CD Pipeline
-# Beads Tasks: intentvision-xyq, intentvision-17y
+# Beads Tasks: intentvision-xyq, intentvision-17y, intentvision-l2m
 #
 # Triggers on push to main and pull requests
 # Runs tests, builds, and deploys to Cloud Run
@@ -9,6 +9,7 @@
 # - firestore-live-tests: Live Firestore tests (opt-in via secret)
 # - build: Docker image build
 # - deploy: Cloud Run deployment (main only)
+# - smoke-staging: Cloud smoke tests after deploy (Phase 9)
 
 name: CI/CD Pipeline
 
@@ -217,12 +218,70 @@ jobs:
           echo "Deployed to: ${SERVICE_URL}"
 
   # =============================================================================
+  # Smoke Staging Job - Cloud Smoke Tests (Phase 9)
+  # =============================================================================
+  # This job runs smoke tests against the deployed staging service.
+  # Validates Firestore connectivity and basic operations in the cloud.
+  #
+  # Required secrets:
+  # - INTENTVISION_STAGING_URL: Staging API URL (e.g., https://intentvision-api-staging.run.app)
+  # - INTENTVISION_GCP_PROJECT_ID: GCP project for context (optional)
+  #
+  smoke-staging:
+    name: Cloud Smoke Tests (Staging)
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get Service URL
+        id: service-url
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          # Use configured staging URL or construct from deploy
+          if [ -n "${{ secrets.INTENTVISION_STAGING_URL }}" ]; then
+            echo "url=${{ secrets.INTENTVISION_STAGING_URL }}" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://intentvision-${{ env.GCP_REGION }}.a.run.app" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Smoke Tests
+        env:
+          INTENTVISION_STAGING_URL: ${{ steps.service-url.outputs.url }}
+          INTENTVISION_SMOKE_TIMEOUT: '30000'
+        run: npm run smoke:staging --workspace=@intentvision/api -- --verbose
+        working-directory: ./
+
+      - name: Report Smoke Test Results
+        if: always()
+        run: |
+          echo "========================================"
+          echo "Cloud Smoke Tests completed"
+          echo "========================================"
+          echo "Target URL: ${{ steps.service-url.outputs.url }}"
+          echo "Timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+          echo "========================================"
+
+  # =============================================================================
   # Notify Job - Send notifications
   # =============================================================================
   notify:
     name: Notify
     runs-on: ubuntu-latest
-    needs: [test, build, deploy]
+    needs: [test, build, deploy, smoke-staging]
     if: always()
 
     steps:
