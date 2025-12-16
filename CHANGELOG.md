@@ -5,6 +5,47 @@ All notable changes to IntentVision will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2025-12-16
+
+### Summary
+
+Sellable Alpha Shell release - IntentVision becomes a sellable product with self-service tenant onboarding, plan-based feature gating, and a complete dashboard UI shell.
+
+### Features
+
+- **Tenant Self-Service Onboarding**: POST /v1/tenants creates org + user + API key atomically
+- **Plan Model**: Free/Starter/Growth/Enterprise plans with limits (metrics, alerts, forecasts)
+- **Per-User Notification Preferences**: Individual control over email/Slack/webhook channels
+- **Dashboard UI**: Complete React app with /dashboard, /alerts, /settings/notifications
+- **Firebase Authentication**: Separate auth path for dashboard users (distinct from API keys)
+- **Usage Tracking**: Real-time enforcement of plan limits
+
+### API Endpoints
+
+- `POST /v1/tenants` - Create new tenant (public self-service)
+- `GET /v1/tenants/:slug` - Get tenant info
+- `GET /v1/dashboard` - Dashboard overview with org info and usage stats
+- `GET /v1/dashboard/alerts` - Paginated alert history
+- `GET /v1/me/preferences/notifications` - Get notification preferences
+- `PUT /v1/me/preferences/notifications` - Update notification preferences
+- `POST /v1/me/preferences/notifications/test` - Send test notification
+
+### Plan Limits
+
+| Plan | Metrics | Alerts | Forecasts/Day | Price |
+|------|---------|--------|---------------|-------|
+| Free | 3 | 5 | 10 | $0 |
+| Starter | 10 | 20 | 100 | $49 |
+| Growth | 50 | 100 | 500 | $199 |
+| Enterprise | Unlimited | Unlimited | Unlimited | Custom |
+
+### Documentation
+
+- 043-AA-AACR-phase-10-sellable-alpha-shell.md (Implementation AAR)
+- 044-DR-ADRC-sellable-alpha-plan-tenant-architecture.md (Architecture Decision Record)
+
+---
+
 ## [0.1.0] - 2025-12-15
 
 ### Summary
