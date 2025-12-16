@@ -5,6 +5,41 @@ All notable changes to IntentVision will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2025-12-16
+
+### Summary
+
+Usage Metering + Plan Enforcement release - IntentVision now tracks all billable operations, enforces daily plan limits, and provides admin usage views for tenant monitoring.
+
+### Features
+
+- **Usage Event Tracking**: All billable operations (forecasts, alerts, ingestion) recorded
+- **Plan Limit Enforcement**: 429 response when daily limits exceeded
+- **Admin Usage API**: Comprehensive usage endpoints for monitoring
+- **Warning System**: Admin overview shows warnings at 80% usage
+
+### API Endpoints
+
+- `GET /admin/orgs/:orgId/usage/today` - Today's usage summary
+- `GET /admin/orgs/:orgId/usage/last-30d` - Last 30 days usage
+- `GET /admin/orgs/:orgId/usage/overview` - Comprehensive overview with warnings
+
+### Usage Event Types
+
+| Event Type | Trigger | Quantity |
+|------------|---------|----------|
+| forecast_call | POST /v1/forecast/run | 1 |
+| alert_fired | Alert notification sent | 1 |
+| metric_ingested | POST /v1/ingest/timeseries | points.length |
+| api_call | General API calls | 1 |
+
+### Documentation
+
+- 045-AA-AACR-phase-11-usage-metering.md (Implementation AAR)
+- 046-DR-ADRC-usage-metering-plan-enforcement.md (Architecture Decision Record)
+
+---
+
 ## [0.10.0] - 2025-12-16
 
 ### Summary

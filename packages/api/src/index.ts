@@ -67,6 +67,12 @@ import {
   handleGetDashboard,
   handleGetDashboardAlerts,
 } from './routes/dashboard.js';
+import {
+  handleGetTodayUsage,
+  handleGetLast30DaysUsage,
+  handleGetUsageOverview,
+  extractAdminUsageParams,
+} from './routes/admin-usage.js';
 
 // =============================================================================
 // Configuration
@@ -381,6 +387,28 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     }
 
     // ==========================================================================
+    // Admin Usage Routes (Phase 11 - Usage Metering)
+    // ==========================================================================
+
+    // GET /admin/orgs/:orgId/usage/* - Admin usage endpoints
+    const usageParams = extractAdminUsageParams(pathname);
+    if (usageParams && method === 'GET') {
+      const { orgId, endpoint } = usageParams;
+      if (endpoint === 'today') {
+        await withAuth(req, res, (req, res, auth) => handleGetTodayUsage(req, res, auth, orgId));
+        return;
+      }
+      if (endpoint === 'last-30d') {
+        await withAuth(req, res, (req, res, auth) => handleGetLast30DaysUsage(req, res, auth, orgId));
+        return;
+      }
+      if (endpoint === 'overview') {
+        await withAuth(req, res, (req, res, auth) => handleGetUsageOverview(req, res, auth, orgId));
+        return;
+      }
+    }
+
+    // ==========================================================================
     // Tenant Onboarding Routes (Phase 10 - Sellable Alpha Shell)
     // ==========================================================================
 
@@ -490,8 +518,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('IntentVision API Server v0.10.0');
-  console.log('Phase 10: Sellable Alpha Shell');
+  console.log('IntentVision API Server v0.11.0');
+  console.log('Phase 11: Usage Metering + Plan Enforcement');
   console.log('========================================');
   console.log(`Environment: ${NODE_ENV}`);
   console.log(`Port: ${PORT}`);
@@ -558,6 +586,11 @@ async function main(): Promise<void> {
     console.log('Smoke Test Endpoints (Phase 9 - Cloud Smoke Tests):');
     console.log('  POST   /v1/internal/smoke              - Run smoke test');
     console.log('  GET    /v1/internal/smoke/:runId       - Get smoke test result');
+    console.log('');
+    console.log('Admin Usage Endpoints (Phase 11 - Usage Metering):');
+    console.log('  GET    /admin/orgs/:orgId/usage/today    - Today\'s usage');
+    console.log('  GET    /admin/orgs/:orgId/usage/last-30d - Last 30 days usage');
+    console.log('  GET    /admin/orgs/:orgId/usage/overview - Comprehensive overview');
     console.log('');
     console.log('Tenant Onboarding Endpoints (Phase 10 - Sellable Alpha):');
     console.log('  POST   /v1/tenants                     - Create tenant (public)');

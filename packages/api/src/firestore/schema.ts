@@ -349,8 +349,55 @@ export interface AlertEvent {
 }
 
 // =============================================================================
-// Usage Tracking (Phase 4)
+// Usage Tracking (Phase 4 + Phase 11)
 // =============================================================================
+
+/**
+ * Usage event types for metering
+ * Phase 11: Granular usage tracking for billing and plan enforcement
+ */
+export type UsageEventType =
+  | 'forecast_call'      // POST /v1/forecast/run
+  | 'alert_fired'        // Alert notification sent
+  | 'metric_ingested'    // Data points ingested
+  | 'api_call';          // General API calls
+
+/**
+ * Individual usage event for metering
+ * Phase 11: Detailed ledger for billing and plan enforcement
+ */
+export interface UsageEvent {
+  id: string;
+  orgId: string;
+  planId: string;
+  userId?: string;
+  eventType: UsageEventType;
+  /** Quantity (typically 1, but can be higher for batch operations) */
+  quantity: number;
+  /** When the event occurred */
+  occurredAt: Date;
+  /** Optional metadata */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Aggregated usage for a time period
+ * Phase 11: Pre-computed aggregates for dashboard and billing
+ */
+export interface UsageAggregate {
+  orgId: string;
+  planId: string;
+  /** Period start (inclusive) */
+  periodStart: Date;
+  /** Period end (exclusive) */
+  periodEnd: Date;
+  /** Counts by event type */
+  counts: Record<UsageEventType, number>;
+  /** Total events */
+  totalEvents: number;
+  /** When this aggregate was last computed */
+  computedAt: Date;
+}
 
 export interface DailyUsage {
   /** Date in YYYY-MM-DD format */
@@ -382,6 +429,8 @@ export const COLLECTIONS = {
   alertRules: (orgId: string) => `organizations/${orgId}/alertRules`,
   alertEvents: (orgId: string) => `organizations/${orgId}/alertEvents`,
   usage: (orgId: string) => `organizations/${orgId}/usage`,
+  /** Phase 11: Individual usage events for metering */
+  usageEvents: (orgId: string) => `organizations/${orgId}/usageEvents`,
 } as const;
 
 // =============================================================================

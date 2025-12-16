@@ -48,6 +48,7 @@ import {
   isResendConfigured,
   deliverToEmailChannel,
 } from '../notifications/resend.js';
+import { recordUsageEvent } from '../services/metering-service.js';
 
 // =============================================================================
 // Types
@@ -954,6 +955,15 @@ export async function handleEvaluateAlerts(
         };
 
         await db.collection(COLLECTIONS.alertEvents(orgId)).doc(eventId).set(alertEvent);
+
+        // Phase 11: Record usage event when alert is fired (only if delivery was attempted)
+        if (anyChannelSuccess || legacyEmailSent) {
+          await recordUsageEvent({
+            orgId,
+            eventType: 'alert_fired',
+            metadata: { ruleId: rule.id, eventId, metricName: rule.metricName },
+          });
+        }
 
         results.push({
           ruleId: rule.id,
