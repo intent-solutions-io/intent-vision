@@ -14,7 +14,9 @@
     "demo:e2e": "tsx src/scripts/demo-e2e.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:firestore:live": "INTENTVISION_FIRESTORE_LIVE_TESTS=1 vitest run tests/firestore-live --reporter=verbose"
+    "test:firestore:live": "INTENTVISION_FIRESTORE_LIVE_TESTS=1 vitest run tests/firestore-live --reporter=verbose",
+    "test:e2e:alerts": "INTENTVISION_E2E_ALERTS=1 vitest run tests/alerts-e2e --reporter=verbose",
+    "alert:test": "tsx src/scripts/test-alert.ts"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.0",
