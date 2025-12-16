@@ -31,6 +31,7 @@ import {
 } from '../firestore/schema.js';
 import { type AuthContext, hasScopeV1 } from '../auth/api-key.js';
 import { getStatisticalBackend } from '../forecast/statistical-backend.js';
+import { recordUsageEvent, checkUsageLimit } from '../services/metering-service.js';
 
 // =============================================================================
 // Types
@@ -184,6 +185,14 @@ export async function handleIngestTimeseries(
       dataPointCount: (metricsQuery.empty ? 0 : (metricsQuery.docs[0].data().dataPointCount || 0)) + sortedPoints.length,
     });
 
+    // Phase 11: Record usage event for data ingestion
+    await recordUsageEvent({
+      orgId,
+      eventType: 'metric_ingested',
+      quantity: validPoints.length,
+      metadata: { metricId, metricName },
+    });
+
     const responseData: IngestTimeseriesResponse = {
       metricId,
       metricName,
@@ -238,6 +247,20 @@ export async function handleForecastRun(
       return;
     }
 
+    const { orgId } = authContext;
+
+    // Phase 11: Check plan limits before running forecast
+    const limitCheck = await checkUsageLimit(orgId, 'forecast_call');
+    if (!limitCheck.allowed) {
+      sendJson(res, 429, {
+        success: false,
+        requestId,
+        timestamp: new Date().toISOString(),
+        error: limitCheck.reason || 'Daily forecast limit exceeded',
+      });
+      return;
+    }
+
     // Parse request
     const body = await parseBody<RunForecastRequest>(req);
     const { metricName, horizonDays = 7, backend: _backend = 'statistical' } = body;
@@ -246,7 +269,6 @@ export async function handleForecastRun(
       throw new Error('metricName is required and must be a string');
     }
 
-    const { orgId } = authContext;
     const db = getDb();
 
     // Find metric
@@ -313,6 +335,13 @@ export async function handleForecastRun(
     };
 
     await forecastsCollection.doc(forecastId).set(forecast);
+
+    // Phase 11: Record usage event for successful forecast
+    await recordUsageEvent({
+      orgId,
+      eventType: 'forecast_call',
+      metadata: { forecastId, metricName, horizonDays },
+    });
 
     const responseData: RunForecastResponse = {
       forecastId,
