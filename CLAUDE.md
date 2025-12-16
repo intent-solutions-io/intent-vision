@@ -378,6 +378,34 @@ All customer-facing product data uses **Firestore** as the primary database:
 
 **Demo UI:** Navigate to `/demo/forecast` in the web package.
 
+### Notification Preferences (Phase 8)
+
+All customer notification preferences are stored in **Firestore**, NOT Turso:
+
+| Data Type | Collection Path |
+|-----------|-----------------|
+| Channels | `envs/{env}/orgs/{orgId}/notificationChannels/{channelId}` |
+| Preferences | `envs/{env}/orgs/{orgId}/notificationPreferences/{preferenceId}` |
+
+**Alert Dispatch Flow:**
+1. Alert event generated (orgId, metricKey, severity)
+2. Query Firestore for matching preferences
+3. Aggregate unique enabled channels
+4. Dispatch to each channel (email via Resend, others stubbed)
+
+**Channel Types:**
+- `email` - Via Resend API (production ready)
+- `slack_webhook` - Stub (future implementation)
+- `http_webhook` - Stub (future implementation)
+- `pagerduty` - Stub (future implementation)
+
+**Test Alert Script:**
+```bash
+npm run alert:test -- --org-id my-org --email user@example.com
+```
+
+**Key Rule:** Beads + AgentFS are for internal planning and tracing only; they must NEVER be required for customer notification flow.
+
 ### Internal Tools Storage (Turso/libSQL)
 
 Turso/libSQL is used **EXCLUSIVELY** for internal development tools:
