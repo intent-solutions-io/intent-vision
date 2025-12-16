@@ -1,6 +1,6 @@
 {
   "name": "intentvision",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Universal Prediction Engine: Connect sources → Normalize metrics → Forecast/anomaly → Explain → Alert/API/dashboard/agent.",
   "type": "module",
   "private": true,
@@ -8,10 +8,16 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "node packages/api/dist/index.js",
+    "dev": "npx tsx packages/api/src/index.ts",
+    "build": "npm run build --workspaces --if-present",
+    "build:api": "npm run build --workspace=@intentvision/api",
     "test": "npm run test:contracts && npm run test:pipeline && npm run test:operator",
     "test:contracts": "npm test --workspace=@intentvision/contracts",
     "test:pipeline": "npx vitest run -c packages/pipeline/vitest.config.ts",
     "test:operator": "npx vitest run -c packages/operator/vitest.config.ts",
+    "test:all": "npm run test && npm run test:e2e",
+    "test:e2e": "npx vitest run packages/pipeline/tests/e2e/",
     "pipeline": "npx tsx packages/pipeline/src/cli.ts",
     "pipeline:synthetic": "npx tsx packages/pipeline/src/cli.ts --synthetic",
     "db:migrate": "npx tsx db/migrate.ts run",

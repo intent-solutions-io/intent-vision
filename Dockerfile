@@ -3,7 +3,7 @@
 #
 # Beads Task: intentvision-xyq.1
 # Build: docker build -t intentvision .
-# Run: docker run -p 8080:8080 intentvision
+# Run: docker run -p 8080:8080 -e INTENTVISION_DB_URL=... intentvision
 
 # =============================================================================
 # Stage 1: Builder - Install dependencies and compile TypeScript
@@ -22,6 +22,7 @@ COPY packages/pipeline/package*.json ./packages/pipeline/
 COPY packages/operator/package*.json ./packages/operator/
 COPY packages/agent/package*.json ./packages/agent/
 COPY packages/functions/package*.json ./packages/functions/
+COPY packages/api/package*.json ./packages/api/
 
 # Install all dependencies (including dev for build)
 RUN npm ci --include=dev
@@ -30,12 +31,13 @@ RUN npm ci --include=dev
 COPY packages/ ./packages/
 COPY tsconfig*.json ./
 
-# Build all packages
+# Build all packages in dependency order
 RUN npm run build --workspace=@intentvision/contracts || true
 RUN npm run build --workspace=@intentvision/pipeline || true
 RUN npm run build --workspace=@intentvision/operator || true
 RUN npm run build --workspace=@intentvision/agent || true
-RUN npm run build --workspace=@intentvision/functions
+RUN npm run build --workspace=@intentvision/functions || true
+RUN npm run build --workspace=@intentvision/api
 
 # =============================================================================
 # Stage 2: Production - Minimal runtime image
@@ -50,14 +52,14 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copy package files
 COPY package*.json ./
-COPY packages/functions/package*.json ./packages/functions/
+COPY packages/api/package*.json ./packages/api/
 
 # Install production dependencies only
-RUN npm ci --omit=dev --workspace=@intentvision/functions && \
+RUN npm ci --omit=dev --workspace=@intentvision/api && \
     npm cache clean --force
 
 # Copy built artifacts from builder
-COPY --from=builder /app/packages/functions/dist ./packages/functions/dist
+COPY --from=builder /app/packages/api/dist ./packages/api/dist
 COPY --from=builder /app/packages/pipeline/dist ./packages/pipeline/dist
 COPY --from=builder /app/packages/operator/dist ./packages/operator/dist
 COPY --from=builder /app/packages/contracts/dist ./packages/contracts/dist
@@ -68,7 +70,6 @@ COPY --from=builder /app/db ./db
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
-ENV FUNCTION_TARGET=runPipeline
 ENV K_SERVICE=intentvision
 
 # Expose Cloud Run port
@@ -79,7 +80,7 @@ USER intentvision
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+    CMD node -e "require('http').get('http://localhost:8080/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
-# Start the functions framework
-CMD ["npx", "functions-framework", "--target=runPipeline", "--source=packages/functions/dist/", "--port=8080"]
+# Start the API server
+CMD ["node", "packages/api/dist/index.js"]

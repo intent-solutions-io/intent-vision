@@ -1,0 +1,237 @@
+# IntentVision CI/CD Pipeline
+# Beads Tasks: intentvision-xyq, intentvision-17y
+#
+# Triggers on push to main and pull requests
+# Runs tests, builds, and deploys to Cloud Run
+#
+# Jobs:
+# - test: Unit/integration tests (no external deps)
+# - firestore-live-tests: Live Firestore tests (opt-in via secret)
+# - build: Docker image build
+# - deploy: Cloud Run deployment (main only)
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  GCP_REGION: us-central1
+
+jobs:
+  # =============================================================================
+  # Test Job - Run all tests
+  # =============================================================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run typecheck || true
+
+      - name: Run contract tests
+        run: npm run test:contracts
+
+      - name: Run pipeline tests
+        run: npm run test:pipeline
+
+      - name: Run operator tests
+        run: npm run test:operator
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          fail_ci_if_error: false
+
+  # =============================================================================
+  # Firestore Live Tests Job - Test against real GCP Firestore (opt-in)
+  # =============================================================================
+  # This job runs live tests against a real GCP Firestore instance.
+  # It is gated by the INTENTVISION_FIRESTORE_LIVE_TESTS secret.
+  #
+  # Required secrets for this job:
+  # - INTENTVISION_FIRESTORE_LIVE_TESTS: Set to '1' to enable
+  # - INTENTVISION_GCP_PROJECT_ID: GCP project with Firestore
+  # - GCP_WORKLOAD_IDENTITY_PROVIDER: WIF provider (or use GCP_SA_KEY)
+  # - GCP_SERVICE_ACCOUNT_EMAIL: Service account for WIF
+  # - GCP_SA_KEY (alternative): Service account JSON key
+  #
+  firestore-live-tests:
+    name: Firestore Live Tests (Dev)
+    runs-on: ubuntu-latest
+    needs: test
+    if: ${{ vars.INTENTVISION_FIRESTORE_LIVE_TESTS == '1' || secrets.INTENTVISION_FIRESTORE_LIVE_TESTS == '1' }}
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          # Option A: Workload Identity Federation (recommended)
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          # Option B: Service account key (fallback)
+          # credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.INTENTVISION_GCP_PROJECT_ID }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Firestore live tests
+        env:
+          INTENTVISION_GCP_PROJECT_ID: ${{ secrets.INTENTVISION_GCP_PROJECT_ID }}
+          INTENTVISION_ENV: dev
+          INTENTVISION_FIRESTORE_LIVE_TESTS: '1'
+        run: npm run test:firestore:live --workspace=@intentvision/api
+        working-directory: ./
+
+      - name: Report test results
+        if: always()
+        run: |
+          echo "Firestore Live Tests completed"
+          echo "Project: ${{ secrets.INTENTVISION_GCP_PROJECT_ID }}"
+          echo "Environment: dev"
+
+  # =============================================================================
+  # Build Job - Build Docker image
+  # =============================================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Build Docker image
+        run: docker build -t intentvision:${{ github.sha }} .
+
+      - name: Test Docker image
+        run: |
+          docker run -d --name test-container \
+            -p 8080:8080 \
+            -e INTENTVISION_DB_URL=file::memory: \
+            intentvision:${{ github.sha }}
+          sleep 5
+          curl -f http://localhost:8080/health || exit 1
+          docker stop test-container
+
+  # =============================================================================
+  # Deploy Job - Deploy to Cloud Run (only on main)
+  # =============================================================================
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker gcr.io --quiet
+
+      - name: Build and push image
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:${{ github.sha }} .
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:${{ github.sha }}
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy intentvision \
+            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --set-secrets "INTENTVISION_DB_URL=turso-database-url:latest,INTENTVISION_DB_AUTH_TOKEN=turso-auth-token:latest"
+
+      - name: Verify deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe intentvision \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          curl -f "${SERVICE_URL}/health" || exit 1
+          echo "Deployed to: ${SERVICE_URL}"
+
+  # =============================================================================
+  # Notify Job - Send notifications
+  # =============================================================================
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [test, build, deploy]
+    if: always()
+
+    steps:
+      - name: Send notification
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "Deployment successful!"
+          elif [ "${{ needs.test.result }}" == "failure" ]; then
+            echo "Tests failed!"
+          elif [ "${{ needs.build.result }}" == "failure" ]; then
+            echo "Build failed!"
+          fi

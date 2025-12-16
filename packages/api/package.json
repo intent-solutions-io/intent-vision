@@ -1,6 +1,6 @@
 {
   "name": "@intentvision/api",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "IntentVision Production API Server",
   "type": "module",
   "main": "dist/index.js",
@@ -11,8 +11,10 @@
     "dev:api": "FIRESTORE_EMULATOR_HOST=localhost:8081 tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "seed:dev": "tsx src/scripts/seed-dev.ts",
+    "demo:e2e": "tsx src/scripts/demo-e2e.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:firestore:live": "INTENTVISION_FIRESTORE_LIVE_TESTS=1 vitest run tests/firestore-live --reporter=verbose"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.0",

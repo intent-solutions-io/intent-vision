@@ -22,6 +22,7 @@ export * from './store/metric-store.js';
 export * from './forecast/forecast-stub.js';
 export * from './forecast/statistical-forecast.js';
 export * from './forecast/nixtla-timegpt.js';
+export * from './forecast/forecast-service.js';
 export * from './anomaly/anomaly-stub.js';
 export * from './anomaly/ensemble-detector.js';
 export * from './alert/alert-emitter.js';
@@ -45,7 +46,7 @@ import {
   ensureOrganization,
   getTimeSeries,
 } from './store/metric-store.js';
-import { createStubForecastBackend } from './forecast/forecast-stub.js';
+import { ForecastService } from './forecast/forecast-service.js';
 import { createStubAnomalyDetector } from './anomaly/anomaly-stub.js';
 import {
   generateAnomalyAlert,
@@ -173,8 +174,11 @@ export async function runPipeline(config: PipelineConfig): Promise<PipelineResul
       errors.push(...storeResult.errors);
     }
 
-    // 5. Run forecast
-    const forecastBackend = createStubForecastBackend();
+    // 5. Run forecast (using ForecastService for job tracking)
+    const forecastService = new ForecastService({
+      defaultBackend: 'custom', // Use stub/statistical backend
+      skipJobTracking: true, // Skip DB tracking - job table has FK constraints
+    });
     const forecastRequest = {
       request_id: uuidv4(),
       org_id: config.orgId,
@@ -183,7 +187,7 @@ export async function runPipeline(config: PipelineConfig): Promise<PipelineResul
       frequency: series.metadata.resolution || '5m',
     };
 
-    const forecastResponse = await forecastBackend.forecast(forecastRequest);
+    const forecastResponse = await forecastService.forecast(forecastRequest);
     pipelineMetrics.forecastsGenerated = forecastResponse.forecast?.predictions.length || 0;
     pipelineLogger.info('Generated forecast', {
       success: forecastResponse.success,

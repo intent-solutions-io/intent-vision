@@ -15,6 +15,11 @@ export default defineConfig({
     sequence: {
       shuffle: false,
     },
+    env: {
+      // Use in-memory SQLite database for tests
+      INTENTVISION_DB_URL: ':memory:',
+      INTENTVISION_JWT_SECRET: 'test-secret-for-unit-tests',
+    },
   },
   resolve: {
     alias: {
