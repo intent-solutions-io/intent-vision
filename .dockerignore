@@ -1,0 +1,65 @@
+# Docker ignore file for IntentVision
+# Prevents unnecessary files from being copied to build context
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Dependencies (will be installed fresh)
+node_modules
+
+# Build artifacts (will be rebuilt)
+dist
+*.tsbuildinfo
+
+# Documentation
+*.md
+!README.md
+000-docs
+
+# Local development
+.env
+.env.local
+.env.*.local
+
+# Beads issue tracker
+.beads
+
+# AgentFS databases
+.agentfs
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+*.test.ts
+*.spec.ts
+__tests__
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Infrastructure (not needed in container)
+infrastructure
+
+# Scripts (development only)
+scripts
+
+# GitHub workflows
+.github

@@ -1,0 +1,90 @@
+# IntentVision Cloud Run Service Configuration
+# Beads Task: intentvision-xyq.2
+#
+# Deploy: gcloud run services replace infrastructure/cloudrun/service.yaml
+# Or use: gcloud run deploy intentvision --source .
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: intentvision
+  labels:
+    app: intentvision
+    environment: production
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      annotations:
+        # Auto-scaling configuration
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        # Request timeout (5 minutes for long forecasts)
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: "false"
+    spec:
+      # Container concurrency - how many requests per instance
+      containerConcurrency: 80
+      # Request timeout in seconds
+      timeoutSeconds: 300
+      # Service account (update with your project's service account)
+      # serviceAccountName: intentvision-sa@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+        - image: gcr.io/PROJECT_ID/intentvision:latest
+          ports:
+            - name: http1
+              containerPort: 8080
+          # Environment variables
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: FUNCTION_TARGET
+              value: "runPipeline"
+            # Turso database URL (from Secret Manager)
+            - name: INTENTVISION_DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: turso-database-url
+                  key: latest
+            # Turso auth token (from Secret Manager)
+            - name: INTENTVISION_DB_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: turso-auth-token
+                  key: latest
+            # Nixtla API key (from Secret Manager)
+            - name: NIXTLA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nixtla-api-key
+                  key: latest
+          # Resource limits
+          resources:
+            limits:
+              cpu: "2"
+              memory: "1Gi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+          # Startup probe
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+          # Liveness probe
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+  # Traffic routing (100% to latest)
+  traffic:
+    - percent: 100
+      latestRevision: true

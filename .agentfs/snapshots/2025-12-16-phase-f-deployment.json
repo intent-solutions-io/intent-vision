@@ -1,0 +1,31 @@
+{
+  "snapshot_id": "2025-12-16-phase-f-deployment",
+  "created_at": "2025-12-16T00:52:39.384Z",
+  "updated_at": "2025-12-16T00:52:39.384Z",
+  "project": "intentvision",
+  "phase": "F",
+  "status": {
+    "phase_a": "completed",
+    "phase_b": "completed",
+    "phase_c": "open",
+    "phase_d": "open",
+    "phase_e": "open",
+    "phase_f": "in_progress"
+  },
+  "beads_tasks": {
+    "current": "intentvision-xyq",
+    "completed": [
+      "intentvision-5ba",
+      "intentvision-jet",
+      "intentvision-jet.1",
+      "intentvision-jet.2",
+      "intentvision-jet.3",
+      "intentvision-jet.4"
+    ]
+  },
+  "tests": {
+    "total": 147,
+    "passing": true
+  },
+  "agent": "claude-opus-4.5"
+}
