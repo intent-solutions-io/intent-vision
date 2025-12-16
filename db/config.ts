@@ -22,8 +22,15 @@ export interface DbConfig {
  * Get database configuration from environment
  */
 export function getDbConfig(): DbConfig {
-  // Default to local SQLite for development
-  const url = process.env.INTENTVISION_DB_URL || 'file:db/intentvision.db';
+  // Use in-memory DB for tests, file DB for development, Turso for production
+  const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST;
+
+  // In test mode, always use :memory: unless TEST_DB_URL is explicitly set
+  if (isTest && !process.env.TEST_DB_URL) {
+    return { url: ':memory:' };
+  }
+
+  const url = process.env.TEST_DB_URL || process.env.INTENTVISION_DB_URL || 'file:db/intentvision.db';
   const authToken = process.env.INTENTVISION_DB_AUTH_TOKEN;
 
   return { url, authToken };
@@ -45,6 +52,9 @@ export function getClient(): Client {
       url: config.url,
       authToken: config.authToken,
     });
+    // Enable WAL mode and set busy timeout for better concurrency
+    _client.execute('PRAGMA journal_mode=WAL').catch(() => {});
+    _client.execute('PRAGMA busy_timeout=5000').catch(() => {});
   }
   return _client;
 }
@@ -57,6 +67,13 @@ export async function closeClient(): Promise<void> {
     _client.close();
     _client = null;
   }
+}
+
+/**
+ * Reset database client (for testing)
+ */
+export function resetClient(): void {
+  _client = null;
 }
 
 // =============================================================================

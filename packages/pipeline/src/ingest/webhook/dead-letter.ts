@@ -286,7 +286,7 @@ export class DeadLetterQueue {
       FROM ${this.config.tableName}
       WHERE org_id = ?
     `;
-    const args: unknown[] = [orgId];
+    const args: (string | number | null)[] = [orgId];
 
     if (status) {
       sql += ' AND status = ?';

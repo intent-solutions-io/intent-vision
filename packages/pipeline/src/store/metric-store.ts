@@ -126,7 +126,7 @@ export async function queryMetrics(options: QueryOptions): Promise<CanonicalMetr
   const client = getClient();
 
   const conditions: string[] = ['org_id = ?'];
-  const args: unknown[] = [options.orgId];
+  const args: (string | number | null)[] = [options.orgId];
 
   if (options.metricKey) {
     conditions.push('metric_key = ?');

@@ -39,6 +39,9 @@ export interface ForecastServiceConfig {
 
   /** Enable mock mode for testing */
   mockMode?: boolean;
+
+  /** Skip database job tracking (useful for tests) */
+  skipJobTracking?: boolean;
 }
 
 export interface BackendHealthStatus {
@@ -74,10 +77,12 @@ export class ForecastService {
   private backends: Map<ForecastBackendType, ForecastBackend> = new Map();
   private defaultBackendType: ForecastBackendType;
   private mockMode: boolean;
+  private skipJobTracking: boolean;
   private serviceLogger = logger.child({ component: 'ForecastService' });
 
   constructor(config?: ForecastServiceConfig) {
     this.mockMode = config?.mockMode || false;
+    this.skipJobTracking = config?.skipJobTracking ?? config?.mockMode ?? false;
     this.defaultBackendType = this.determineDefaultBackend(config);
 
     // Register default backends
@@ -128,8 +133,11 @@ export class ForecastService {
       dataPoints: request.series.data_points.length,
     }, context);
 
-    // Create forecast job record
-    const jobId = await this.createForecastJob(request, selectedBackend);
+    // Create forecast job record (skip in test/mock mode)
+    let jobId: string | null = null;
+    if (!this.skipJobTracking) {
+      jobId = await this.createForecastJob(request, selectedBackend);
+    }
 
     try {
       // Get backend
@@ -138,18 +146,22 @@ export class ForecastService {
         throw new Error(`Backend not available: ${selectedBackend}`);
       }
 
-      // Update job status to running
-      await this.updateForecastJob(jobId, 'running', { started_at: new Date().toISOString() });
+      // Update job status to running (if tracking)
+      if (jobId) {
+        await this.updateForecastJob(jobId, 'running', { started_at: new Date().toISOString() });
+      }
 
       // Generate forecast
       const response = await backend.forecast(request);
 
       // Update job status based on response
       if (response.success) {
-        await this.updateForecastJob(jobId, 'completed', {
-          completed_at: new Date().toISOString(),
-          forecast_id: response.request_id,
-        });
+        if (jobId) {
+          await this.updateForecastJob(jobId, 'completed', {
+            completed_at: new Date().toISOString(),
+            forecast_id: response.request_id,
+          });
+        }
 
         this.serviceLogger.info('Forecast completed', {
           backend: selectedBackend,
@@ -158,10 +170,12 @@ export class ForecastService {
           outputPoints: response.metadata.output_points,
         }, context);
       } else {
-        await this.updateForecastJob(jobId, 'failed', {
-          completed_at: new Date().toISOString(),
-          error: response.error || 'Unknown error',
-        });
+        if (jobId) {
+          await this.updateForecastJob(jobId, 'failed', {
+            completed_at: new Date().toISOString(),
+            error: response.error || 'Unknown error',
+          });
+        }
 
         this.serviceLogger.error('Forecast failed', {
           backend: selectedBackend,
@@ -174,11 +188,13 @@ export class ForecastService {
     } catch (error) {
       const errorMessage = (error as Error).message;
 
-      // Update job to failed
-      await this.updateForecastJob(jobId, 'failed', {
-        completed_at: new Date().toISOString(),
-        error: errorMessage,
-      });
+      // Update job to failed (if tracking)
+      if (jobId) {
+        await this.updateForecastJob(jobId, 'failed', {
+          completed_at: new Date().toISOString(),
+          error: errorMessage,
+        });
+      }
 
       this.serviceLogger.error('Forecast error', {
         backend: selectedBackend,

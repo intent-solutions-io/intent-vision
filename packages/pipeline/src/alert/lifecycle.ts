@@ -229,7 +229,7 @@ export class AlertLifecycleManager {
     const client = getClient();
 
     let sql = 'SELECT * FROM alert_states WHERE 1=1';
-    const args: unknown[] = [];
+    const args: (string | number | null)[] = [];
 
     if (orgId) {
       sql += ' AND org_id = ?';

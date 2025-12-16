@@ -34,7 +34,7 @@ export interface LoadOptions {
 // Loader
 // =============================================================================
 
-const DEFAULT_FIXTURES_PATH = join(__dirname, '../../../../contracts/fixtures');
+const DEFAULT_FIXTURES_PATH = join(__dirname, '../../../../packages/contracts/fixtures');
 
 /**
  * Load metrics fixture data

@@ -110,7 +110,7 @@ export class RulesEngine {
     const client = getClient();
 
     let sql = 'SELECT * FROM alert_rules WHERE enabled = 1';
-    const args: unknown[] = [];
+    const args: (string | number | null)[] = [];
 
     if (orgId) {
       sql += ' AND org_id = ?';

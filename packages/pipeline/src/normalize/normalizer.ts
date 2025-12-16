@@ -115,7 +115,7 @@ export function normalizeMetric(
 
   return {
     success: true,
-    metric: m as CanonicalMetric,
+    metric: m as unknown as CanonicalMetric,
     errors,
     warnings,
   };

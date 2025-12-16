@@ -11,10 +11,18 @@ export default defineConfig({
     environment: 'node',
     root: projectRoot,
     include: ['packages/pipeline/tests/**/*.test.ts'],
+    setupFiles: ['packages/pipeline/tests/vitest-setup.ts'],
     fileParallelism: false, // Run test files sequentially to avoid DB locking
+    pool: 'forks', // Use separate processes for better isolation
+    poolOptions: {
+      forks: {
+        singleFork: true, // Single process for all tests
+      },
+    },
     sequence: {
       shuffle: false,
     },
+    testTimeout: 30000, // 30s timeout for E2E tests
   },
   resolve: {
     alias: {
