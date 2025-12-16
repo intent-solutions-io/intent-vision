@@ -53,6 +53,20 @@ import {
   handleGetSmokeTest,
   extractSmokeRunId,
 } from './routes/smoke.js';
+import {
+  handleCreateTenant,
+  handleGetTenant,
+  extractTenantSlug,
+} from './routes/tenants.js';
+import {
+  handleGetNotificationPreferences,
+  handleUpdateNotificationPreferences,
+  handleSendTestNotification,
+} from './routes/preferences.js';
+import {
+  handleGetDashboard,
+  handleGetDashboardAlerts,
+} from './routes/dashboard.js';
 
 // =============================================================================
 // Configuration
@@ -367,6 +381,61 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     }
 
     // ==========================================================================
+    // Tenant Onboarding Routes (Phase 10 - Sellable Alpha Shell)
+    // ==========================================================================
+
+    // POST /v1/tenants - Create new tenant (public - self-service onboarding)
+    if (pathname === '/v1/tenants' && method === 'POST') {
+      await handleCreateTenant(req, res);
+      return;
+    }
+
+    // GET /v1/tenants/:slug - Get tenant info (API key auth required)
+    const tenantSlug = extractTenantSlug(pathname);
+    if (tenantSlug && method === 'GET') {
+      await withAuth(req, res, (req, res, auth) => handleGetTenant(req, res, auth, tenantSlug));
+      return;
+    }
+
+    // ==========================================================================
+    // Dashboard Routes (Phase 10 - Firebase Auth)
+    // ==========================================================================
+
+    // GET /v1/dashboard - Dashboard overview
+    if (pathname === '/v1/dashboard' && method === 'GET') {
+      await handleGetDashboard(req, res);
+      return;
+    }
+
+    // GET /v1/dashboard/alerts - All alerts with pagination
+    if (pathname === '/v1/dashboard/alerts' && method === 'GET') {
+      await handleGetDashboardAlerts(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Notification Preferences Routes (Phase 10 - Firebase Auth)
+    // ==========================================================================
+
+    // GET /v1/me/preferences/notifications - Get notification preferences
+    if (pathname === '/v1/me/preferences/notifications' && method === 'GET') {
+      await handleGetNotificationPreferences(req, res);
+      return;
+    }
+
+    // PUT /v1/me/preferences/notifications - Update notification preferences
+    if (pathname === '/v1/me/preferences/notifications' && method === 'PUT') {
+      await handleUpdateNotificationPreferences(req, res);
+      return;
+    }
+
+    // POST /v1/me/preferences/notifications/test - Send test notification
+    if (pathname === '/v1/me/preferences/notifications/test' && method === 'POST') {
+      await handleSendTestNotification(req, res);
+      return;
+    }
+
+    // ==========================================================================
     // Demo Routes (Phase E2E - Single-Metric Forecast Demo)
     // ==========================================================================
 
@@ -421,8 +490,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('IntentVision API Server v0.6.0');
-  console.log('Phase E2E: Single-Metric Forecast Demo');
+  console.log('IntentVision API Server v0.10.0');
+  console.log('Phase 10: Sellable Alpha Shell');
   console.log('========================================');
   console.log(`Environment: ${NODE_ENV}`);
   console.log(`Port: ${PORT}`);
@@ -489,6 +558,19 @@ async function main(): Promise<void> {
     console.log('Smoke Test Endpoints (Phase 9 - Cloud Smoke Tests):');
     console.log('  POST   /v1/internal/smoke              - Run smoke test');
     console.log('  GET    /v1/internal/smoke/:runId       - Get smoke test result');
+    console.log('');
+    console.log('Tenant Onboarding Endpoints (Phase 10 - Sellable Alpha):');
+    console.log('  POST   /v1/tenants                     - Create tenant (public)');
+    console.log('  GET    /v1/tenants/:slug               - Get tenant info');
+    console.log('');
+    console.log('Dashboard Endpoints (Phase 10 - Firebase Auth):');
+    console.log('  GET    /v1/dashboard                   - Dashboard overview');
+    console.log('  GET    /v1/dashboard/alerts            - All alerts');
+    console.log('');
+    console.log('Notification Preferences (Phase 10 - Firebase Auth):');
+    console.log('  GET    /v1/me/preferences/notifications     - Get preferences');
+    console.log('  PUT    /v1/me/preferences/notifications     - Update preferences');
+    console.log('  POST   /v1/me/preferences/notifications/test - Test notification');
     console.log('');
     console.log('Demo Endpoints (Phase E2E - Single-Metric Forecast):');
     console.log('  POST   /v1/demo/ingest       - Ingest demo metric data');

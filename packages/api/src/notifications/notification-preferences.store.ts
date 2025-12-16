@@ -126,7 +126,8 @@ export async function listNotificationChannelsForOrg(
   const collection = getChannelsCollection(orgId);
   const snapshot = await collection.orderBy('createdAt', 'desc').get();
 
-  return snapshot.docs.map((doc) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return snapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data(),
   })) as NotificationChannelConfig[];
@@ -246,7 +247,8 @@ export async function listNotificationPreferencesForOrg(
   const collection = getPreferencesCollection(orgId);
   const snapshot = await collection.orderBy('createdAt', 'desc').get();
 
-  return snapshot.docs.map((doc) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return snapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data(),
   })) as NotificationPreference[];
@@ -296,7 +298,8 @@ export async function findMatchingPreferences(params: {
     .where('enabled', '==', true)
     .get();
 
-  const allPreferences = snapshot.docs.map((doc) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allPreferences = snapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data(),
   })) as NotificationPreference[];

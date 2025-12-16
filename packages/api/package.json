@@ -11,6 +11,7 @@
     "dev:api": "FIRESTORE_EMULATOR_HOST=localhost:8081 tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
     "seed:dev": "tsx src/scripts/seed-dev.ts",
+    "seed:demo": "tsx src/scripts/seed-demo-tenant.ts",
     "demo:e2e": "tsx src/scripts/demo-e2e.ts",
     "test": "vitest run",
     "test:watch": "vitest",
