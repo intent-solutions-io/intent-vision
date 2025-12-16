@@ -3,7 +3,8 @@
  *
  * Phase 4: Production SaaS Control Plane + Public API v1
  * Phase 5: Customer Onboarding + Org/API Key Flow
- * Beads Tasks: intentvision-002, intentvision-8aj, intentvision-p88, intentvision-p5
+ * Phase E2E: Single-Metric Forecast Demo
+ * Beads Tasks: intentvision-002, intentvision-8aj, intentvision-p88, intentvision-p5, intentvision-r4j
  *
  * Main entry point for the IntentVision prediction engine.
  * Handles HTTP requests for:
@@ -11,6 +12,7 @@
  * - Forecasting (GET /v1/metrics/:name/forecasts)
  * - Alerts (POST/GET/PATCH/DELETE /v1/alerts)
  * - Internal operator endpoints (POST/GET /v1/internal/*)
+ * - Demo endpoints (POST/GET /v1/demo/*)
  * - Health checks
  */
 
@@ -40,6 +42,12 @@ import {
   handleListMyApiKeys,
   handleCreateMyApiKey,
 } from './routes/me.js';
+import {
+  handleDemoIngest,
+  handleDemoForecast,
+  handleDemoMetricGet,
+  handleDemoBackendsList,
+} from './routes/demo.js';
 
 // =============================================================================
 // Configuration
@@ -336,6 +344,34 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return;
     }
 
+    // ==========================================================================
+    // Demo Routes (Phase E2E - Single-Metric Forecast Demo)
+    // ==========================================================================
+
+    // POST /v1/demo/ingest - Ingest time series data for demo
+    if (pathname === '/v1/demo/ingest' && method === 'POST') {
+      await withAuth(req, res, handleDemoIngest);
+      return;
+    }
+
+    // POST /v1/demo/forecast - Run forecast on demo metric
+    if (pathname === '/v1/demo/forecast' && method === 'POST') {
+      await withAuth(req, res, handleDemoForecast);
+      return;
+    }
+
+    // GET /v1/demo/metric - Get metric data with latest forecast
+    if (pathname === '/v1/demo/metric' && method === 'GET') {
+      await withAuth(req, res, handleDemoMetricGet);
+      return;
+    }
+
+    // GET /v1/demo/backends - List available forecast backends
+    if (pathname === '/v1/demo/backends' && method === 'GET') {
+      await withAuth(req, res, handleDemoBackendsList);
+      return;
+    }
+
     // Method not allowed for known paths
     if (pathname.startsWith('/v1/')) {
       handleMethodNotAllowed(res);
@@ -363,8 +399,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('IntentVision API Server v0.5.0');
-  console.log('Phase 5: Customer Onboarding + Org/API Key Flow');
+  console.log('IntentVision API Server v0.6.0');
+  console.log('Phase E2E: Single-Metric Forecast Demo');
   console.log('========================================');
   console.log(`Environment: ${NODE_ENV}`);
   console.log(`Port: ${PORT}`);
@@ -427,6 +463,12 @@ async function main(): Promise<void> {
     console.log('  POST   /v1/internal/organizations/:orgId/apiKeys  - Create key');
     console.log('  GET    /v1/internal/organizations/:orgId/apiKeys  - List keys');
     console.log('  DELETE /v1/internal/organizations/:orgId/apiKeys/:keyId - Revoke key');
+    console.log('');
+    console.log('Demo Endpoints (Phase E2E - Single-Metric Forecast):');
+    console.log('  POST   /v1/demo/ingest       - Ingest demo metric data');
+    console.log('  POST   /v1/demo/forecast     - Run forecast on demo metric');
+    console.log('  GET    /v1/demo/metric       - Get metric with latest forecast');
+    console.log('  GET    /v1/demo/backends     - List available forecast backends');
     console.log('');
     console.log('Scope Requirements:');
     console.log('  ingest:write  - POST /v1/ingest/*');

@@ -356,15 +356,27 @@ All customer-facing product data uses **Firestore** as the primary database:
 
 **Firestore is the canonical source of truth for all customer data.**
 
-### API Endpoint Categories (Phase 5)
+### API Endpoint Categories (Phase 5 + E2E)
 
 | Category | Endpoints | Auth Method |
 |----------|-----------|-------------|
 | Public API | `/v1/ingest/*`, `/v1/forecast/*`, `/v1/alerts/*` | API Key |
 | Dashboard API | `/v1/me`, `/v1/me/apiKeys` | Firebase Auth |
+| Demo API | `/v1/demo/ingest`, `/v1/demo/forecast`, `/v1/demo/metric`, `/v1/demo/backends` | API Key |
 | Internal Operator | `/v1/internal/organizations/*` | API Key (admin scope) |
 
 **Internal operator endpoints are NOT for customer use.**
+
+### Demo API (Phase E2E)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/v1/demo/ingest` | POST | Ingest time series data for demo |
+| `/v1/demo/forecast` | POST | Run forecast (stub/stat/timegpt) |
+| `/v1/demo/metric` | GET | Get metric with latest forecast |
+| `/v1/demo/backends` | GET | List available forecast backends |
+
+**Demo UI:** Navigate to `/demo/forecast` in the web package.
 
 ### Internal Tools Storage (Turso/libSQL)
 

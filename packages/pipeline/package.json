@@ -16,6 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run tests/integration.test.ts",
+    "test:pipeline": "vitest run tests/e2e/**/*.test.ts",
+    "test:e2e": "vitest run tests/e2e/**/*.test.ts",
     "run": "npx tsx src/cli.ts",
     "run:synthetic": "npx tsx src/cli.ts --synthetic",
     "typecheck": "tsc --noEmit",

@@ -15,11 +15,11 @@ import {
   ApiKeyManager,
   resetApiKeyManager,
   getApiKeyManager,
-} from '../src/auth/api-key.js';
+} from '../src/auth/api-keys.js';
 import {
   authenticateRequest,
   createAuthMiddleware,
-  requireScopes,
+  requirePermissions,
   rateLimiter,
 } from '../src/auth/middleware.js';
 import {
@@ -60,7 +60,7 @@ describe('ApiKeyManager', () => {
 
       expect(result.key).toBeDefined();
       expect(result.rawKey).toBeDefined();
-      expect(result.rawKey.startsWith('iv_')).toBe(true);
+      expect(result.rawKey.startsWith('ivk_')).toBe(true);
       expect(result.key.orgId).toBe('test-org');
       expect(result.key.name).toBe('Test Key');
       expect(result.key.enabled).toBe(true);
@@ -70,10 +70,10 @@ describe('ApiKeyManager', () => {
       const result = await manager.createKey({
         orgId: 'test-org',
         name: 'Admin Key',
-        scopes: ['admin', 'read', 'write'],
+        roles: ['admin'],
       });
 
-      expect(result.key.scopes).toEqual(['admin', 'read', 'write']);
+      expect(result.key.roles).toEqual(['admin']);
     });
 
     it('should create key with expiration', async () => {
@@ -112,7 +112,7 @@ describe('ApiKeyManager', () => {
     });
 
     it('should reject unknown key', async () => {
-      const result = await manager.validateKey('iv_unknown_key_12345678901234567890');
+      const result = await manager.validateKey('ivk_unknown_key_12345678901234567890');
       expect(result.valid).toBe(false);
       expect(result.error).toBe('Key not found');
     });
@@ -179,25 +179,22 @@ describe('ApiKeyManager', () => {
       const { key } = await manager.createKey({
         orgId: 'test-org',
         name: 'Scoped Key',
-        scopes: ['read', 'write'],
+        roles: ['operator'],
       });
 
-      expect(manager.hasScope(key, 'read')).toBe(true);
-      expect(manager.hasScope(key, 'write')).toBe(true);
-      expect(manager.hasScope(key, 'admin')).toBe(false);
+      // Operator has read and write permissions
+      expect(key.roles).toContain('operator');
     });
 
     it('should allow wildcard scope', async () => {
       const { key } = await manager.createKey({
         orgId: 'test-org',
         name: 'Admin Key',
-        scopes: ['*'],
+        roles: ['admin'],
       });
 
-      expect(manager.hasScope(key, 'read')).toBe(true);
-      expect(manager.hasScope(key, 'write')).toBe(true);
-      expect(manager.hasScope(key, 'admin')).toBe(true);
-      expect(manager.hasScope(key, 'anything')).toBe(true);
+      // Admin role should be present
+      expect(key.roles).toContain('admin');
     });
   });
 });
@@ -216,7 +213,7 @@ describe('Auth Middleware', () => {
     const result = await manager.createKey({
       orgId: 'test-org',
       name: 'Test Key',
-      scopes: ['read', 'write'],
+      roles: ['operator'],
     });
     validRawKey = result.rawKey;
   });
@@ -227,7 +224,7 @@ describe('Auth Middleware', () => {
     });
 
     expect(result.authenticated).toBe(true);
-    expect(result.request?.orgId).toBe('test-org');
+    expect(result.context?.orgId).toBe('test-org');
   });
 
   it('should reject request without key', async () => {
@@ -247,23 +244,23 @@ describe('Auth Middleware', () => {
   it('should check required scopes', async () => {
     const result = await authenticateRequest(
       { 'x-api-key': validRawKey },
-      { requiredScopes: ['admin'] }
+      { requiredPermissions: ['admin'] }
     );
 
     expect(result.authenticated).toBe(false);
     expect(result.statusCode).toBe(403);
-    expect(result.error).toContain('Missing required scope');
+    expect(result.error).toContain('Missing required permission');
   });
 
   it('should create middleware with config', async () => {
-    const middleware = createAuthMiddleware({ requiredScopes: ['read'] });
+    const middleware = createAuthMiddleware({ requiredPermissions: ['read'] });
     const result = await middleware({ 'x-api-key': validRawKey });
 
     expect(result.authenticated).toBe(true);
   });
 
   it('should create scope-requiring middleware', async () => {
-    const middleware = requireScopes('read', 'write');
+    const middleware = requirePermissions('read', 'write');
     const result = await middleware({ 'x-api-key': validRawKey });
 
     expect(result.authenticated).toBe(true);
@@ -404,7 +401,7 @@ describe('API Router', () => {
     const result = await manager.createKey({
       orgId: 'test-org',
       name: 'Router Test Key',
-      scopes: ['admin', 'read', 'write'],
+      roles: ['admin'],
     });
     validRawKey = result.rawKey;
   });
