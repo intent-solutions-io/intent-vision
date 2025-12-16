@@ -48,6 +48,11 @@ import {
   handleDemoMetricGet,
   handleDemoBackendsList,
 } from './routes/demo.js';
+import {
+  handleSmokeTest,
+  handleGetSmokeTest,
+  extractSmokeRunId,
+} from './routes/smoke.js';
 
 // =============================================================================
 // Configuration
@@ -345,6 +350,23 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     }
 
     // ==========================================================================
+    // Smoke Test Routes (Phase 9 - Cloud Smoke Tests)
+    // ==========================================================================
+
+    // POST /v1/internal/smoke - Run smoke test (no auth - infrastructure check)
+    if (pathname === '/v1/internal/smoke' && method === 'POST') {
+      await handleSmokeTest(req, res);
+      return;
+    }
+
+    // GET /v1/internal/smoke/:runId - Get smoke test result
+    const smokeRunId = extractSmokeRunId(pathname);
+    if (smokeRunId && method === 'GET') {
+      await handleGetSmokeTest(req, res, smokeRunId);
+      return;
+    }
+
+    // ==========================================================================
     // Demo Routes (Phase E2E - Single-Metric Forecast Demo)
     // ==========================================================================
 
@@ -463,6 +485,10 @@ async function main(): Promise<void> {
     console.log('  POST   /v1/internal/organizations/:orgId/apiKeys  - Create key');
     console.log('  GET    /v1/internal/organizations/:orgId/apiKeys  - List keys');
     console.log('  DELETE /v1/internal/organizations/:orgId/apiKeys/:keyId - Revoke key');
+    console.log('');
+    console.log('Smoke Test Endpoints (Phase 9 - Cloud Smoke Tests):');
+    console.log('  POST   /v1/internal/smoke              - Run smoke test');
+    console.log('  GET    /v1/internal/smoke/:runId       - Get smoke test result');
     console.log('');
     console.log('Demo Endpoints (Phase E2E - Single-Metric Forecast):');
     console.log('  POST   /v1/demo/ingest       - Ingest demo metric data');
