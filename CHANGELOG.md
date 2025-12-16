@@ -5,6 +5,83 @@ All notable changes to IntentVision will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2025-12-16
+
+### Summary
+
+Production Deployment Infrastructure - IntentVision now has complete CI/CD automation with Cloud Run services, Firebase Hosting, and comprehensive observability through GCP monitoring.
+
+### Features
+
+- **Environment Configuration**: Three-tier model (dev/staging/prod) with isolated Firestore prefixes
+- **Cloud Run Deployment**: API service with autoscaling and revision management
+- **Firebase Hosting**: Dashboard deployment with custom domain support
+- **CI/CD Pipeline**: Automated GitHub Actions for test, build, deploy-staging, deploy-prod
+- **Observability**: GCP Cloud Logging, Error Reporting, and Uptime Checks
+
+### Infrastructure
+
+| Environment | API Endpoint | Firestore Prefix |
+|-------------|--------------|------------------|
+| Development | localhost:3000 | envs/dev |
+| Staging | iv-api-staging-xxx.run.app | envs/staging |
+| Production | api.intentvision.io | envs/prod |
+
+### CI/CD Jobs
+
+- `test` - Unit tests (no external deps)
+- `firestore-live-tests` - Live Firestore tests (opt-in via secret)
+- `build` - Docker image build + smoke test
+- `deploy-staging` - Cloud Run staging (main branch)
+- `deploy-prod` - Cloud Run production (tags only)
+- `smoke-staging` - Cloud smoke tests after staging deploy
+
+### Documentation
+
+- 049-DR-ADRC-production-deployment-observability.md (Architecture Decision Record)
+- 050-AA-AACR-phase-13-production-deployment.md (Implementation AAR)
+- 051-AT-RNBK-intentvision-deploy-rollback.md (Runbook)
+- 052-AT-RNBK-production-readiness-checklist.md (Checklist)
+
+---
+
+## [0.12.0] - 2025-12-16
+
+### Summary
+
+Billing Plumbing release - Foundation for monetization with billing snapshots, Stripe abstraction layer (stubbed for testing), and CLI tools for billing operations.
+
+### Features
+
+- **Billing Snapshot Model**: Periodic usage aggregation for invoicing
+- **Stripe Client Abstraction**: Interface layer with stub for development/testing
+- **Plan Mapping**: Translation between IntentVision plans and Stripe products
+- **CLI Tools**: Commands for snapshot generation and billing reports
+- **Owner Billing UI**: Dashboard view for billing history and upcoming charges
+
+### Billing Snapshot Schema
+
+```typescript
+interface BillingSnapshot {
+  id: string;
+  orgId: string;
+  periodStart: Date;
+  periodEnd: Date;
+  status: 'pending' | 'finalized' | 'invoiced' | 'paid';
+  usage: { forecasts, alerts, metrics, apiCalls };
+  subtotal: number;
+  planId: string;
+  stripeInvoiceId?: string;
+}
+```
+
+### Documentation
+
+- 047-DR-ADRC-billing-plumbing-stripe-stub.md (Architecture Decision Record)
+- 048-AA-AACR-phase-12-billing-plumbing.md (Implementation AAR)
+
+---
+
 ## [0.11.0] - 2025-12-16
 
 ### Summary
