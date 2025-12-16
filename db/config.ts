@@ -25,9 +25,10 @@ export function getDbConfig(): DbConfig {
   // Use in-memory DB for tests, file DB for development, Turso for production
   const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST;
 
-  // In test mode, always use :memory: unless TEST_DB_URL is explicitly set
+  // In test mode, use shared cache memory database to allow multiple connections
+  // to access the same in-memory database (fixes the "no such table" issue)
   if (isTest && !process.env.TEST_DB_URL) {
-    return { url: ':memory:' };
+    return { url: 'file:memdb?mode=memory&cache=shared' };
   }
 
   const url = process.env.TEST_DB_URL || process.env.INTENTVISION_DB_URL || 'file:db/intentvision.db';

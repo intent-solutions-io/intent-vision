@@ -11,11 +11,13 @@
     "demo": "npx tsx src/demo.ts"
   },
   "dependencies": {
-    "agentfs-sdk": "^0.1.0"
+    "agentfs-sdk": "^0.2.3",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^1.6.0"
   }
 }
