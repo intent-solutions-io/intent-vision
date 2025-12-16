@@ -11,8 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@intentvision/contracts": "workspace:*",
-    "@intentvision/pipeline": "workspace:*",
+    "@intentvision/contracts": "*",
+    "@intentvision/pipeline": "*",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
