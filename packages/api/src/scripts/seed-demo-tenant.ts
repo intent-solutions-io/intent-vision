@@ -16,7 +16,6 @@ import {
   COLLECTIONS,
   type Metric,
   type TimeSeriesDocument,
-  type User,
 } from '../firestore/schema.js';
 import {
   createOrganization,
@@ -99,7 +98,7 @@ async function seedDemoTenant(): Promise<void> {
 
   // Create API key with full scopes
   console.log('\nCreating demo API key...');
-  const { apiKey, rawKey } = await createApiKey(organization.id, 'Demo API Key', [
+  const { rawKey } = await createApiKey(organization.id, 'Demo API Key', [
     'ingest:write',
     'metrics:read',
     'alerts:read',
