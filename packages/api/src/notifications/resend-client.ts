@@ -144,16 +144,26 @@ export async function sendResendEmail(options: SendEmailOptions): Promise<SendEm
 
 /**
  * Format an alert as an HTML email
+ * Phase 16: Includes incident information if alert is grouped
  */
-export function formatAlertEmailHtml(alert: {
-  orgId: string;
-  metricKey: string;
-  severity: string;
-  title: string;
-  message: string;
-  occurredAt: string;
-  context?: Record<string, unknown>;
-}): string {
+export function formatAlertEmailHtml(
+  alert: {
+    orgId: string;
+    metricKey: string;
+    severity: string;
+    title: string;
+    message: string;
+    occurredAt: string;
+    context?: Record<string, unknown>;
+  },
+  incident?: {
+    id: string;
+    title: string;
+    summary?: string;
+    alertEventIds: string[];
+    relatedMetrics: string[];
+  }
+): string {
   const severityColor = {
     info: '#2196F3',
     warning: '#FF9800',
@@ -188,6 +198,20 @@ export function formatAlertEmailHtml(alert: {
     ${escapeHtml(alert.message)}
   </p>
 
+  ${incident ? `
+  <div style="background: #f5f5f5; border-left: 4px solid #2196F3; padding: 12px 16px; margin: 16px 0;">
+    <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Incident: ${escapeHtml(incident.title)}</h3>
+    <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
+      ${incident.summary ? escapeHtml(incident.summary) : `${incident.alertEventIds.length} alert${incident.alertEventIds.length > 1 ? 's' : ''} grouped`}
+    </p>
+    ${incident.relatedMetrics.length > 1 ? `
+    <p style="margin: 0; font-size: 12px; color: #666;">
+      Related metrics: ${incident.relatedMetrics.map(m => `<code style="background: #fff; padding: 2px 4px; border-radius: 2px;">${escapeHtml(m)}</code>`).join(', ')}
+    </p>
+    ` : ''}
+  </div>
+  ` : ''}
+
   <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
     <tr>
       <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666; width: 120px;">Metric</td>
@@ -201,6 +225,12 @@ export function formatAlertEmailHtml(alert: {
       <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666;">Occurred At</td>
       <td style="padding: 8px 0; border-bottom: 1px solid #eee;">${escapeHtml(timestamp)}</td>
     </tr>
+    ${incident ? `
+    <tr>
+      <td style="padding: 8px 0; border-bottom: 1px solid #eee; color: #666;">Incident ID</td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-family: monospace;">${escapeHtml(incident.id)}</td>
+    </tr>
+    ` : ''}
     ${alert.context ? formatContextRows(alert.context) : ''}
   </table>
 
@@ -217,16 +247,26 @@ export function formatAlertEmailHtml(alert: {
 
 /**
  * Format an alert as plain text email
+ * Phase 16: Includes incident information if alert is grouped
  */
-export function formatAlertEmailText(alert: {
-  orgId: string;
-  metricKey: string;
-  severity: string;
-  title: string;
-  message: string;
-  occurredAt: string;
-  context?: Record<string, unknown>;
-}): string {
+export function formatAlertEmailText(
+  alert: {
+    orgId: string;
+    metricKey: string;
+    severity: string;
+    title: string;
+    message: string;
+    occurredAt: string;
+    context?: Record<string, unknown>;
+  },
+  incident?: {
+    id: string;
+    title: string;
+    summary?: string;
+    alertEventIds: string[];
+    relatedMetrics: string[];
+  }
+): string {
   const timestamp = new Date(alert.occurredAt).toLocaleString('en-US', {
     timeZone: 'America/Chicago',
     dateStyle: 'full',
@@ -237,12 +277,28 @@ export function formatAlertEmailText(alert: {
 [${alert.severity.toUpperCase()}] ${alert.title}
 
 ${alert.message}
+`;
 
+  if (incident) {
+    text += `
+Incident: ${incident.title}
+${incident.summary || `${incident.alertEventIds.length} alert${incident.alertEventIds.length > 1 ? 's' : ''} grouped`}
+`;
+    if (incident.relatedMetrics.length > 1) {
+      text += `Related metrics: ${incident.relatedMetrics.join(', ')}\n`;
+    }
+  }
+
+  text += `
 Details:
 - Metric: ${alert.metricKey}
 - Organization: ${alert.orgId}
 - Occurred At: ${timestamp}
 `;
+
+  if (incident) {
+    text += `- Incident ID: ${incident.id}\n`;
+  }
 
   if (alert.context) {
     text += '\nContext:\n';

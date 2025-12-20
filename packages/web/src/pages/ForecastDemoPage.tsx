@@ -373,7 +373,8 @@ export default function ForecastDemoPage() {
     }
 
     const maxValue = Math.max(...allPoints.map(p => p.value));
-    const barWidth = Math.max(4, Math.min(12, (styles.chart.width as number || 800) / allPoints.length - 2));
+    const chartWidth = 800; // Default chart width for bar calculations
+    const barWidth = Math.max(4, Math.min(12, chartWidth / allPoints.length - 2));
 
     return (
       <div style={styles.chart}>

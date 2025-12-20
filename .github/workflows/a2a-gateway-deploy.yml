@@ -1,0 +1,159 @@
+# IntentVision A2A Gateway Deployment
+#
+# Beads Task: intentvision-9xh
+#
+# CI/CD workflow for deploying the A2A gateway service to Cloud Run.
+# This service bridges the IntentVision TypeScript API with ADK agents.
+
+name: A2A Gateway Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'adk/service/a2a_gateway/**'
+      - '.github/workflows/a2a-gateway-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'adk/service/a2a_gateway/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  PROJECT_ID: intentvision
+  LOCATION: us-central1
+  SERVICE_NAME: a2a-gateway
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ==========================================================================
+  # Test Gateway Service
+  # ==========================================================================
+  test:
+    name: Test Gateway
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd adk
+          pip install -r requirements.txt
+          pip install pytest pytest-cov httpx
+
+      - name: Run gateway tests
+        run: |
+          cd adk
+          pytest tests/test_a2a_gateway.py -v
+        env:
+          PROJECT_ID: intentvision-test
+          LOCATION: us-central1
+          ENV: test
+
+  # ==========================================================================
+  # Build and Deploy to Cloud Run
+  # ==========================================================================
+  deploy:
+    name: Deploy Gateway
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: staging
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Build and push container
+        run: |
+          cd adk
+          gcloud builds submit \
+            --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --project ${{ env.PROJECT_ID }} \
+            service/a2a_gateway
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }}-staging \
+            --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.LOCATION }} \
+            --allow-unauthenticated \
+            --set-env-vars PROJECT_ID=${{ env.PROJECT_ID }},LOCATION=${{ env.LOCATION }},ENV=staging \
+            --project ${{ env.PROJECT_ID }}
+
+  # ==========================================================================
+  # Manual deployment
+  # ==========================================================================
+  deploy-manual:
+    name: Manual Deploy
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Build and push container
+        run: |
+          cd adk
+          gcloud builds submit \
+            --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --project ${{ env.PROJECT_ID }} \
+            service/a2a_gateway
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }}-${{ github.event.inputs.environment }} \
+            --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.LOCATION }} \
+            --allow-unauthenticated \
+            --set-env-vars PROJECT_ID=${{ env.PROJECT_ID }},LOCATION=${{ env.LOCATION }},ENV=${{ github.event.inputs.environment }} \
+            --project ${{ env.PROJECT_ID }}

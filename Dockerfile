@@ -1,9 +1,11 @@
 # IntentVision Production Dockerfile
 # Multi-stage build for optimized Cloud Run deployment
 #
+# Phase 13: Production Deployment Infrastructure
 # Beads Task: intentvision-xyq.1
+#
 # Build: docker build -t intentvision .
-# Run: docker run -p 8080:8080 -e INTENTVISION_DB_URL=... intentvision
+# Run: docker run -p 8080:8080 -e INTENTVISION_ENV=staging -e INTENTVISION_DB_URL=... intentvision
 
 # =============================================================================
 # Stage 1: Builder - Install dependencies and compile TypeScript
@@ -71,6 +73,10 @@ COPY --from=builder /app/db ./db
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV K_SERVICE=intentvision
+ENV INTENTVISION_ENV=production
+
+# Production Node.js optimizations
+ENV NODE_OPTIONS="--max-old-space-size=512 --enable-source-maps"
 
 # Expose Cloud Run port
 EXPOSE 8080
@@ -78,9 +84,23 @@ EXPOSE 8080
 # Switch to non-root user
 USER intentvision
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8080/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+# Health check - comprehensive check of /health endpoint
+# Interval: 30s, Timeout: 10s, Start period: 15s (allow for initialization), Retries: 3
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD node -e "const http = require('http'); \
+                 const options = { hostname: 'localhost', port: 8080, path: '/health', timeout: 5000 }; \
+                 http.get(options, (res) => { \
+                   let data = ''; \
+                   res.on('data', chunk => data += chunk); \
+                   res.on('end', () => { \
+                     try { \
+                       const health = JSON.parse(data); \
+                       process.exit(res.statusCode === 200 && health.status === 'healthy' ? 0 : 1); \
+                     } catch (e) { \
+                       process.exit(1); \
+                     } \
+                   }); \
+                 }).on('error', () => process.exit(1)).on('timeout', () => process.exit(1));"
 
 # Start the API server
 CMD ["node", "packages/api/dist/index.js"]

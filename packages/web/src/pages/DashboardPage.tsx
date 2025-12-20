@@ -173,7 +173,7 @@ export default function DashboardPage() {
   const [user] = useState(mockUser);
   const [org] = useState(mockOrg);
   const [apiKeys] = useState(mockApiKeys);
-  const [loading] = useState(false);
+  const [_loading] = useState(false);
 
   // In production, this would fetch from GET /v1/me and GET /v1/me/apiKeys
   useEffect(() => {

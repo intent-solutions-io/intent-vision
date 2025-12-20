@@ -1,0 +1,34 @@
+[project]
+name = "intentvision-adk"
+version = "0.14.1"
+description = "IntentVision ADK Agents for Vertex AI Agent Engine"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "Proprietary"}
+authors = [
+    {name = "Intent Solutions", email = "jeremy@intentsolutions.io"}
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.10.0",
+    "flake8>=6.1.0",
+    "mypy>=1.6.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

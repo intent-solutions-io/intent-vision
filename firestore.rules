@@ -1,0 +1,242 @@
+rules_version = '2';
+
+/**
+ * IntentVision Firestore Security Rules
+ *
+ * Phase 13: Production Deployment Infrastructure
+ *
+ * Tenant-scoped security rules for multi-tenant SaaS platform.
+ *
+ * Collections:
+ * - tenants: Tenant configuration and metadata
+ * - organizations: Organization data (tenant-scoped)
+ * - api_keys: API keys (tenant-scoped, hashed)
+ * - metrics: Time series metrics (tenant-scoped)
+ * - forecasts: Forecast results (tenant-scoped)
+ * - alerts: Alert rules and history (tenant-scoped)
+ * - notifications: Notification preferences (tenant-scoped)
+ * - usage: Usage tracking (tenant-scoped)
+ *
+ * Security Model:
+ * - All data is scoped to tenant_id
+ * - API keys authenticate tenant access
+ * - Internal operations use service account
+ * - Read/write permissions enforced by tenant ownership
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================================================
+    // Helper Functions
+    // ==========================================================================
+
+    /**
+     * Check if user is authenticated (via Firebase Auth)
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Check if user has service account privileges
+     * Service accounts are identified by custom claims
+     */
+    function isServiceAccount() {
+      return isAuthenticated() &&
+             request.auth.token.get('service_account', false) == true;
+    }
+
+    /**
+     * Check if request has valid tenant_id in data
+     */
+    function hasTenantId() {
+      return request.resource.data.tenant_id is string &&
+             request.resource.data.tenant_id.size() > 0;
+    }
+
+    /**
+     * Check if tenant_id matches the authenticated user's tenant
+     */
+    function isTenantOwner(tenantId) {
+      return isAuthenticated() &&
+             request.auth.token.get('tenant_id', '') == tenantId;
+    }
+
+    /**
+     * Check if resource belongs to authenticated tenant
+     */
+    function belongsToTenant() {
+      return resource.data.tenant_id == request.auth.token.get('tenant_id', '');
+    }
+
+    /**
+     * Validate tenant_id is not being changed
+     */
+    function tenantIdUnchanged() {
+      return request.resource.data.tenant_id == resource.data.tenant_id;
+    }
+
+    // ==========================================================================
+    // Tenants Collection
+    // ==========================================================================
+
+    match /tenants/{tenantId} {
+      // Service accounts can create/read/update tenants
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || isTenantOwner(tenantId);
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can read their own tenant
+      allow get: if isTenantOwner(tenantId);
+    }
+
+    // ==========================================================================
+    // Organizations Collection
+    // ==========================================================================
+
+    match /organizations/{orgId} {
+      // Service accounts have full access
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can read their organizations
+      allow get: if belongsToTenant();
+    }
+
+    // ==========================================================================
+    // API Keys Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /api_keys/{keyId} {
+      // Only service accounts can manage API keys
+      // API keys contain hashed values, not plaintext
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can list their API keys (without seeing hash)
+      allow list: if belongsToTenant();
+    }
+
+    // ==========================================================================
+    // Metrics Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /metrics/{metricId} {
+      // Service accounts can write metrics
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can read their metrics
+      allow get, list: if belongsToTenant();
+
+      // Subcollection: time series data points
+      match /data_points/{pointId} {
+        allow read, write: if isServiceAccount() || belongsToTenant();
+      }
+    }
+
+    // ==========================================================================
+    // Forecasts Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /forecasts/{forecastId} {
+      // Service accounts can write forecasts
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can read their forecasts
+      allow get, list: if belongsToTenant();
+    }
+
+    // ==========================================================================
+    // Alert Rules Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /alert_rules/{ruleId} {
+      // Service accounts have full access
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can manage their alert rules
+      allow get, list: if belongsToTenant();
+      allow create, update: if belongsToTenant() && hasTenantId();
+    }
+
+    // ==========================================================================
+    // Alert History Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /alert_history/{historyId} {
+      // Service accounts can write alert history
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can read alert history
+      allow get, list: if belongsToTenant();
+    }
+
+    // ==========================================================================
+    // Notification Preferences Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /notification_preferences/{prefId} {
+      // Service accounts have full access
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can manage their notification preferences
+      allow get, list: if belongsToTenant();
+      allow create, update: if belongsToTenant() && hasTenantId();
+    }
+
+    // ==========================================================================
+    // Usage Collection (tenant-scoped)
+    // ==========================================================================
+
+    match /usage/{usageId} {
+      // Only service accounts can write usage data
+      allow create: if isServiceAccount() && hasTenantId();
+      allow read: if isServiceAccount() || belongsToTenant();
+      allow update: if isServiceAccount() && tenantIdUnchanged();
+      allow delete: if isServiceAccount();
+
+      // Tenant owners can read their usage data
+      allow get, list: if belongsToTenant();
+    }
+
+    // ==========================================================================
+    // Health Check Collection (public read)
+    // ==========================================================================
+
+    match /_health/{doc} {
+      // Service accounts can write health checks
+      allow write: if isServiceAccount();
+      // Public read for health checks
+      allow read: if true;
+    }
+
+    // ==========================================================================
+    // Deny all other access
+    // ==========================================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -68,6 +68,74 @@ export interface User {
 }
 
 // =============================================================================
+// Organization Invitations (Phase 15)
+// =============================================================================
+
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+
+export interface OrgInvitation {
+  id: string;
+  /** Organization ID */
+  orgId: string;
+  /** Email address of invitee */
+  email: string;
+  /** Role to be granted upon acceptance */
+  role: UserRole;
+  /** Unique token for invitation link */
+  token: string;
+  /** Invitation status */
+  status: InvitationStatus;
+  /** User ID who sent the invitation */
+  invitedBy: string;
+  /** When the invitation was sent */
+  invitedAt: Date;
+  /** When the invitation expires */
+  expiresAt: Date;
+  /** When the invitation was accepted (if applicable) */
+  acceptedAt?: Date;
+}
+
+// =============================================================================
+// Audit Logs (Phase 15)
+// =============================================================================
+
+export type AuditAction =
+  | 'member.invited'
+  | 'member.joined'
+  | 'member.removed'
+  | 'member.role_changed'
+  | 'api_key.created'
+  | 'api_key.deleted'
+  | 'alert.created'
+  | 'alert.updated'
+  | 'alert.deleted'
+  | 'source.connected'
+  | 'source.disconnected'
+  | 'settings.changed';
+
+export interface AuditLog {
+  id: string;
+  /** Organization ID */
+  orgId: string;
+  /** User who performed the action */
+  userId: string;
+  /** Action performed */
+  action: AuditAction;
+  /** Type of resource affected */
+  resourceType: string;
+  /** ID of the resource affected */
+  resourceId: string;
+  /** Additional metadata about the action */
+  metadata?: Record<string, unknown>;
+  /** IP address of the request */
+  ipAddress?: string;
+  /** User agent of the request */
+  userAgent?: string;
+  /** When the action occurred */
+  createdAt: Date;
+}
+
+// =============================================================================
 // API Key
 // =============================================================================
 
@@ -84,6 +152,7 @@ export type ApiScope =
   | 'read';
 
 export type ApiKeyStatus = 'active' | 'revoked';
+export type ApiKeyMode = 'sandbox' | 'production';
 
 export interface ApiKey {
   id: string;
@@ -102,6 +171,8 @@ export interface ApiKey {
   status: ApiKeyStatus;
   /** Rate limit per minute (0 = unlimited) */
   rateLimitPerMinute?: number;
+  /** Key mode: sandbox (non-billable, limited) or production */
+  mode: ApiKeyMode;
 }
 
 // =============================================================================
@@ -415,6 +486,136 @@ export interface DailyUsage {
 }
 
 // =============================================================================
+// Billing Snapshots (Phase 12)
+// =============================================================================
+
+/**
+ * Billing snapshot for a billing period
+ * Phase 12: Billing backend for future Stripe integration
+ */
+export interface BillingSnapshot {
+  id: string;
+  orgId: string;
+  planId: string;
+  /** Billing period start (inclusive) */
+  periodStart: Date;
+  /** Billing period end (exclusive) */
+  periodEnd: Date;
+  /** Usage totals for the period */
+  totals: {
+    forecast_calls: number;
+    alerts_fired: number;
+    metrics_ingested: number;
+  };
+  /** When this snapshot was created */
+  createdAt: Date;
+}
+
+// =============================================================================
+// Project (Phase 14)
+// =============================================================================
+
+export type ProjectStatus = 'active' | 'archived' | 'deleted';
+
+export interface Project {
+  id: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  status: ProjectStatus;
+  /** Whether sample data has been loaded for demo */
+  sampleDataLoaded: boolean;
+  /** Whether first forecast has been completed */
+  firstForecastCompleted: boolean;
+  /** ID of the first forecast if completed */
+  firstForecastId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// =============================================================================
+// Onboarding Progress (Phase 14)
+// =============================================================================
+
+export type OnboardingStep = 'org_setup' | 'project_creation' | 'connect_source' | 'first_forecast' | 'completed';
+
+export interface OnboardingProgress {
+  id: string;
+  orgId: string;
+  /** Current step in onboarding */
+  currentStep: OnboardingStep;
+  /** Completed steps */
+  completedSteps: OnboardingStep[];
+  /** When onboarding started */
+  startedAt: Date;
+  /** When onboarding was completed */
+  completedAt?: Date;
+  /** Project ID created during onboarding */
+  projectId?: string;
+  updatedAt: Date;
+}
+
+// =============================================================================
+// Backend Usage Tracking (Phase 18)
+// =============================================================================
+
+/**
+ * Track daily usage of premium forecast backends
+ * Phase 18: Plan-aware cost guardrails
+ */
+export interface BackendUsage {
+  /** Organization ID */
+  orgId: string;
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  /** Statistical backend calls (always free, no limit) */
+  statistical: number;
+  /** Nixtla/TimeGPT backend calls */
+  nixtla: number;
+  /** LLM-based forecast calls */
+  llm: number;
+  /** When this record was last updated */
+  updatedAt: Date;
+}
+
+// =============================================================================
+// Alert Incidents (Phase 16)
+// =============================================================================
+
+export type IncidentStatus = 'open' | 'acknowledged' | 'resolved';
+
+/**
+ * Alert Incident - Groups related alerts for smarter correlation
+ * Phase 16: Smarter Alerts - Correlation & Grouping
+ */
+export interface AlertIncident {
+  id: string;
+  orgId: string;
+  /** Human-readable title */
+  title: string;
+  /** Auto-generated summary */
+  summary?: string;
+  status: IncidentStatus;
+  /** First alert timestamp */
+  startedAt: Date;
+  /** When resolved */
+  resolvedAt?: Date;
+  /** Related alert event IDs */
+  alertEventIds: string[];
+  /** Related metric names */
+  relatedMetrics: string[];
+  /** Root cause hints (metric IDs that may be causing others) */
+  rootCauseHints?: string[];
+  /** Correlation metadata */
+  correlationMetadata?: {
+    timeWindowMinutes: number;
+    sharedTags?: string[];
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// =============================================================================
 // Collection Paths
 // =============================================================================
 
@@ -431,6 +632,20 @@ export const COLLECTIONS = {
   usage: (orgId: string) => `organizations/${orgId}/usage`,
   /** Phase 11: Individual usage events for metering */
   usageEvents: (orgId: string) => `organizations/${orgId}/usageEvents`,
+  /** Phase 12: Billing snapshots for billing periods */
+  billingSnapshots: (orgId: string) => `organizations/${orgId}/billingSnapshots`,
+  /** Phase 14: Projects for customer onboarding */
+  projects: (orgId: string) => `organizations/${orgId}/projects`,
+  /** Phase 14: Onboarding progress tracking */
+  onboardingProgress: (orgId: string) => `organizations/${orgId}/onboardingProgress`,
+  /** Phase 15: Organization invitations for team access */
+  invitations: (orgId: string) => `organizations/${orgId}/invitations`,
+  /** Phase 15: Audit logs for team actions */
+  auditLogs: (orgId: string) => `organizations/${orgId}/auditLogs`,
+  /** Phase 16: Alert incidents for correlation and grouping */
+  incidents: (orgId: string) => `organizations/${orgId}/incidents`,
+  /** Phase 18: Backend-specific usage tracking */
+  backendUsage: (orgId: string) => `organizations/${orgId}/backendUsage`,
 } as const;
 
 // =============================================================================

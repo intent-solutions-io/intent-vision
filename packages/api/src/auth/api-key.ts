@@ -26,6 +26,8 @@ export interface AuthContext {
   orgId: string;
   keyId: string;
   scopes: ApiScope[];
+  /** Whether this is a sandbox key (non-billable, limited functionality) */
+  isSandbox: boolean;
 }
 
 export interface AuthResult {
@@ -62,7 +64,8 @@ export function generateApiKey(): { rawKey: string; hashedKey: string; keyPrefix
 export async function createApiKey(
   orgId: string,
   name: string,
-  scopes: ApiScope[] = ['ingest', 'forecast', 'read']
+  scopes: ApiScope[] = ['ingest', 'forecast', 'read'],
+  mode: 'sandbox' | 'production' = 'production'
 ): Promise<{ apiKey: ApiKey; rawKey: string }> {
   const db = getDb();
   const { rawKey, hashedKey, keyPrefix } = generateApiKey();
@@ -77,6 +80,7 @@ export async function createApiKey(
     scopes,
     createdAt: new Date(),
     status: 'active',
+    mode,
   };
 
   const collection = COLLECTIONS.apiKeys(orgId);
@@ -152,6 +156,7 @@ export async function authenticateApiKey(rawKey: string): Promise<AuthResult> {
             orgId,
             keyId: keyData.id,
             scopes: keyData.scopes,
+            isSandbox: keyData.mode === 'sandbox',
           },
         };
       }

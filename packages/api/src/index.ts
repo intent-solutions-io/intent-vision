@@ -73,6 +73,40 @@ import {
   handleGetUsageOverview,
   extractAdminUsageParams,
 } from './routes/admin-usage.js';
+import {
+  handleGetBillingSummary,
+} from './routes/billing.js';
+import {
+  handleCreateProject,
+  handleListProjects,
+  handleAttachSampleSource,
+  handleRunFirstForecast,
+  extractProjectId,
+} from './routes/onboarding.js';
+import {
+  handleCreateInvitation,
+  handleAcceptInvitation,
+  handleListInvitations,
+  handleCancelInvitation,
+  extractInvitationToken,
+  extractInvitationId,
+} from './routes/invitations.js';
+import {
+  handleGetAuditLogs,
+} from './routes/audit.js';
+import {
+  handleListIncidents,
+  handleGetIncident,
+  handleAcknowledgeIncident,
+  handleResolveIncident,
+  extractIncidentId,
+} from './routes/incidents.js';
+import {
+  handleGenerateIncidentSummary,
+  handleGetAgentStatus,
+  extractIncidentIdForSummary,
+  isAgentStatusPath,
+} from './routes/agent.js';
 
 // =============================================================================
 // Configuration
@@ -442,6 +476,16 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     }
 
     // ==========================================================================
+    // Owner Billing Routes (Phase 12 - Firebase Auth)
+    // ==========================================================================
+
+    // GET /owner/billing/summary - Get billing summary (owner only)
+    if (pathname === '/owner/billing/summary' && method === 'GET') {
+      await handleGetBillingSummary(req, res);
+      return;
+    }
+
+    // ==========================================================================
     // Notification Preferences Routes (Phase 10 - Firebase Auth)
     // ==========================================================================
 
@@ -460,6 +504,131 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
     // POST /v1/me/preferences/notifications/test - Send test notification
     if (pathname === '/v1/me/preferences/notifications/test' && method === 'POST') {
       await handleSendTestNotification(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Billing Routes (Phase 12 - Billing Backend)
+    // ==========================================================================
+
+    // GET /owner/billing/summary - Get billing summary (owner only)
+    if (pathname === '/owner/billing/summary' && method === 'GET') {
+      await handleGetBillingSummary(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Onboarding Routes (Phase 14 - Customer Onboarding Flow)
+    // ==========================================================================
+
+    // POST /orgs/self/projects - Create first project
+    if (pathname === '/orgs/self/projects' && method === 'POST') {
+      await withAuth(req, res, handleCreateProject);
+      return;
+    }
+
+    // GET /orgs/self/projects - List projects
+    if (pathname === '/orgs/self/projects' && method === 'GET') {
+      await withAuth(req, res, handleListProjects);
+      return;
+    }
+
+    // POST /projects/:id/sample-source - Attach sample dataset
+    const projectId = extractProjectId(pathname);
+    if (projectId && pathname === `/projects/${projectId}/sample-source` && method === 'POST') {
+      await withAuth(req, res, (req, res, auth) => handleAttachSampleSource(req, res, auth, projectId));
+      return;
+    }
+
+    // POST /projects/:id/first-forecast - Run guided first forecast
+    if (projectId && pathname === `/projects/${projectId}/first-forecast` && method === 'POST') {
+      await withAuth(req, res, (req, res, auth) => handleRunFirstForecast(req, res, auth, projectId));
+      return;
+    }
+
+    // ==========================================================================
+    // Invitation Routes (Phase 15 - Team Access & RBAC)
+    // ==========================================================================
+
+    // POST /orgs/self/invitations - Create invitation (admin+)
+    if (pathname === '/orgs/self/invitations' && method === 'POST') {
+      await handleCreateInvitation(req, res);
+      return;
+    }
+
+    // GET /orgs/self/invitations - List pending invitations (admin+)
+    if (pathname === '/orgs/self/invitations' && method === 'GET') {
+      await handleListInvitations(req, res);
+      return;
+    }
+
+    // DELETE /orgs/self/invitations/:id - Cancel invitation (admin+)
+    const invitationId = extractInvitationId(pathname);
+    if (invitationId && method === 'DELETE') {
+      await handleCancelInvitation(req, res, invitationId);
+      return;
+    }
+
+    // POST /invitations/:token/accept - Accept invitation (public with Firebase auth)
+    const invitationToken = extractInvitationToken(pathname);
+    if (invitationToken && method === 'POST') {
+      await handleAcceptInvitation(req, res, invitationToken);
+      return;
+    }
+
+    // ==========================================================================
+    // Audit Routes (Phase 15 - Team Access & RBAC)
+    // ==========================================================================
+
+    // GET /orgs/self/audit-logs - Query audit logs (admin+)
+    if (pathname === '/orgs/self/audit-logs' && method === 'GET') {
+      await handleGetAuditLogs(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Incident Routes (Phase 16 - Smarter Alerts: Correlation & Grouping)
+    // ==========================================================================
+
+    // GET /orgs/self/incidents - List incidents
+    if (pathname === '/orgs/self/incidents' && method === 'GET') {
+      await withAuth(req, res, handleListIncidents);
+      return;
+    }
+
+    // GET /orgs/self/incidents/:id - Get incident detail
+    // POST /orgs/self/incidents/:id/acknowledge - Acknowledge incident
+    // POST /orgs/self/incidents/:id/resolve - Resolve incident
+    const incidentId = extractIncidentId(pathname);
+    if (incidentId) {
+      if (pathname === `/orgs/self/incidents/${incidentId}` && method === 'GET') {
+        await withAuth(req, res, (req, res, auth) => handleGetIncident(req, res, auth, incidentId));
+        return;
+      }
+      if (pathname === `/orgs/self/incidents/${incidentId}/acknowledge` && method === 'POST') {
+        await withAuth(req, res, (req, res, auth) => handleAcknowledgeIncident(req, res, auth, incidentId));
+        return;
+      }
+      if (pathname === `/orgs/self/incidents/${incidentId}/resolve` && method === 'POST') {
+        await withAuth(req, res, (req, res, auth) => handleResolveIncident(req, res, auth, incidentId));
+        return;
+      }
+    }
+
+    // ==========================================================================
+    // Agent Routes (Phase 17 - Operator Assistant Agent)
+    // ==========================================================================
+
+    // GET /v1/agent/status - Get agent system status
+    if (isAgentStatusPath(pathname) && method === 'GET') {
+      await withAuth(req, res, handleGetAgentStatus);
+      return;
+    }
+
+    // POST /v1/incidents/:id/summary - Generate AI summary for incident
+    const summaryIncidentId = extractIncidentIdForSummary(pathname);
+    if (summaryIncidentId && method === 'POST') {
+      await withAuth(req, res, (req, res, auth) => handleGenerateIncidentSummary(req, res, auth, summaryIncidentId));
       return;
     }
 
@@ -518,8 +687,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('IntentVision API Server v0.11.0');
-  console.log('Phase 11: Usage Metering + Plan Enforcement');
+  console.log('IntentVision API Server v0.17.0');
+  console.log('Phase 17: Operator Assistant Agent');
   console.log('========================================');
   console.log(`Environment: ${NODE_ENV}`);
   console.log(`Port: ${PORT}`);
@@ -604,6 +773,13 @@ async function main(): Promise<void> {
     console.log('  GET    /v1/me/preferences/notifications     - Get preferences');
     console.log('  PUT    /v1/me/preferences/notifications     - Update preferences');
     console.log('  POST   /v1/me/preferences/notifications/test - Test notification');
+    console.log('');
+    console.log('Billing Endpoints (Phase 12 - Billing Backend):');
+    console.log('  GET    /owner/billing/summary              - Get billing summary (owner only)');
+    console.log('');
+    console.log('Agent Endpoints (Phase 17 - Operator Assistant Agent):');
+    console.log('  GET    /v1/agent/status                    - Get agent system status');
+    console.log('  POST   /v1/incidents/:id/summary           - Generate AI incident summary');
     console.log('');
     console.log('Demo Endpoints (Phase E2E - Single-Metric Forecast):');
     console.log('  POST   /v1/demo/ingest       - Ingest demo metric data');
