@@ -2,6 +2,7 @@
  * Alert Dispatcher - Multi-Channel Alert Delivery
  *
  * Phase 8: Notification Preferences + Multi-Channel Alerts
+ * Phase 16: Smarter Alerts - Correlation & Grouping
  * Beads Task: intentvision-qb9
  *
  * Dispatches alerts to configured notification channels based on
@@ -10,6 +11,8 @@
  * - Slack webhook - stub
  * - HTTP webhook - stub
  * - PagerDuty - stub
+ *
+ * Phase 16 adds incident correlation to group related alerts
  */
 
 import {
@@ -23,6 +26,11 @@ import {
   formatAlertEmailText,
   isResendConfigured,
 } from './resend-client.js';
+import {
+  findOrCreateIncident,
+  type AlertIncident,
+} from '../services/incident-service.js';
+import type { AlertEvent as SchemaAlertEvent } from '../firestore/schema.js';
 
 // =============================================================================
 // Types
@@ -46,6 +54,8 @@ export interface AlertDispatchSummary {
   results: DispatchResult[];
   dispatchedAt: string;
   durationMs: number;
+  /** Phase 16: Associated incident if alert was grouped */
+  incident?: AlertIncident;
 }
 
 // =============================================================================
@@ -57,7 +67,8 @@ export interface AlertDispatchSummary {
  */
 async function sendEmailChannel(
   channel: NotificationChannelConfig,
-  alert: AlertEvent
+  alert: AlertEvent,
+  incident?: AlertIncident
 ): Promise<DispatchResult> {
   const sentAt = new Date().toISOString();
 
@@ -73,8 +84,8 @@ async function sendEmailChannel(
   }
 
   const subject = `[${alert.severity.toUpperCase()}] ${alert.title}`;
-  const html = formatAlertEmailHtml(alert);
-  const text = formatAlertEmailText(alert);
+  const html = formatAlertEmailHtml(alert, incident);
+  const text = formatAlertEmailText(alert, incident);
 
   const result = await sendResendEmail({
     to: channel.emailAddress,
@@ -85,6 +96,7 @@ async function sendEmailChannel(
       { name: 'org', value: alert.orgId },
       { name: 'severity', value: alert.severity },
       { name: 'metric', value: alert.metricKey },
+      ...(incident ? [{ name: 'incident', value: incident.id }] : []),
     ],
   });
 
@@ -239,13 +251,15 @@ async function sendPagerDutyChannel(
  * Dispatch an alert to all matching channels based on Firestore preferences
  *
  * Flow:
- * 1. Query Firestore for matching preferences (by org, metric, severity)
- * 2. Collect unique enabled channels from those preferences
- * 3. Send alert to each channel using channel-specific sender
- * 4. Return summary of dispatch results
+ * 1. Convert alert to schema format and find/create incident (Phase 16)
+ * 2. Query Firestore for matching preferences (by org, metric, severity)
+ * 3. Collect unique enabled channels from those preferences
+ * 4. Send alert to each channel using channel-specific sender
+ * 5. Return summary of dispatch results
  */
 export async function dispatchAlert(
-  alert: AlertEvent
+  alert: AlertEvent,
+  schemaAlertEvent?: SchemaAlertEvent
 ): Promise<AlertDispatchSummary> {
   const startTime = Date.now();
   const dispatchedAt = new Date().toISOString();
@@ -257,6 +271,22 @@ export async function dispatchAlert(
     title: alert.title,
     metricKey: alert.metricKey,
   });
+
+  // Phase 16: Find or create incident for alert correlation
+  let incident: AlertIncident | undefined;
+  if (schemaAlertEvent) {
+    try {
+      incident = await findOrCreateIncident(schemaAlertEvent);
+      console.log('[AlertDispatcher] Associated with incident', {
+        incidentId: incident.id,
+        status: incident.status,
+        alertCount: incident.alertEventIds.length,
+      });
+    } catch (error) {
+      console.error('[AlertDispatcher] Failed to create/find incident', error);
+      // Continue without incident - non-blocking
+    }
+  }
 
   // Get channels for this alert based on preferences
   const channels = await getChannelsForAlert(alert);
@@ -276,6 +306,7 @@ export async function dispatchAlert(
       results: [],
       dispatchedAt,
       durationMs: Date.now() - startTime,
+      incident,
     };
   }
 
@@ -285,7 +316,7 @@ export async function dispatchAlert(
 
     switch (channel.type) {
       case 'email':
-        result = await sendEmailChannel(channel, alert);
+        result = await sendEmailChannel(channel, alert, incident);
         break;
       case 'slack_webhook':
         result = await sendSlackWebhookChannel(channel, alert);
@@ -318,6 +349,7 @@ export async function dispatchAlert(
     results,
     dispatchedAt,
     durationMs: Date.now() - startTime,
+    incident,
   };
 
   console.log('[AlertDispatcher] Dispatch complete', {
@@ -325,6 +357,7 @@ export async function dispatchAlert(
     channelsNotified: summary.channelsNotified,
     channelsFailed: summary.channelsFailed,
     durationMs: summary.durationMs,
+    incidentId: incident?.id,
   });
 
   return summary;

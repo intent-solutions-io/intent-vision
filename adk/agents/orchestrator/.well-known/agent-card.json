@@ -1,0 +1,136 @@
+{
+  "protocol_version": "0.3.0",
+  "name": "intentvision-orchestrator",
+  "version": "0.14.1",
+  "url": "https://agents.intentvision.intent-solutions.io/orchestrator",
+  "description": "IntentVision Orchestrator Agent - Routes requests to specialist agents for forecast explanation, alert tuning, and metric onboarding.\n\nIdentity: spiffe://intent-solutions.io/agent/intentvision-orchestrator/dev/us-central1/0.14.1",
+  "capabilities": [
+    "routing",
+    "coordination",
+    "forecast_explanation",
+    "alert_analysis",
+    "onboarding_assistance"
+  ],
+  "default_input_modes": ["text"],
+  "default_output_modes": ["text"],
+  "preferred_transport": "JSONRPC",
+  "skills": [
+    {
+      "name": "Explain Forecast",
+      "description": "Explain forecast predictions for a metric, including trends, confidence, and anomalies",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "metric_key"],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "metric_key": {
+            "type": "string",
+            "description": "Metric key to explain"
+          },
+          "time_range": {
+            "type": "string",
+            "description": "Time range for analysis (default: 7d)"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "required": ["explanation", "confidence"],
+        "properties": {
+          "explanation": {
+            "type": "string",
+            "description": "Natural language explanation of the forecast"
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Confidence score 0-1"
+          },
+          "trend": {
+            "type": "string",
+            "enum": ["increasing", "decreasing", "stable", "volatile"]
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    {
+      "name": "Analyze Alerts",
+      "description": "Analyze alert rules and recommend threshold changes to reduce noise",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id"],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "alert_rule_id": {
+            "type": "string",
+            "description": "Optional specific rule to analyze"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "required": ["recommendations"],
+        "properties": {
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rule_id": {"type": "string"},
+                "current_threshold": {"type": "number"},
+                "recommended_threshold": {"type": "number"},
+                "rationale": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Onboard Metric",
+      "description": "Help onboard a new metric from an external data source",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "source_type"],
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "description": "Organization ID"
+          },
+          "source_type": {
+            "type": "string",
+            "description": "Data source type (stripe, posthog, webhook, csv)"
+          },
+          "description": {
+            "type": "string",
+            "description": "User description of what they want to track"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "required": ["suggested_config"],
+        "properties": {
+          "suggested_config": {
+            "type": "object",
+            "description": "Suggested configuration for the metric"
+          },
+          "next_steps": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    }
+  ],
+  "spiffe_id": "spiffe://intent-solutions.io/agent/intentvision-orchestrator/dev/us-central1/0.14.1"
+}

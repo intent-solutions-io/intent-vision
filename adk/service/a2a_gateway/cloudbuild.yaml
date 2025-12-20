@@ -1,0 +1,34 @@
+# Cloud Build configuration for A2A Gateway
+#
+# Beads Task: intentvision-9xh
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/a2a-gateway:$SHORT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/a2a-gateway:latest'
+      - '-f'
+      - 'adk/service/a2a_gateway/Dockerfile.cloudrun'
+      - 'adk'
+
+  # Push the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/a2a-gateway:$SHORT_SHA'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/a2a-gateway:latest'
+
+images:
+  - 'gcr.io/$PROJECT_ID/a2a-gateway:$SHORT_SHA'
+  - 'gcr.io/$PROJECT_ID/a2a-gateway:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

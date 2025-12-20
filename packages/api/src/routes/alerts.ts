@@ -255,6 +255,10 @@ export async function handleCreateAlertRule(
 
     await db.collection(COLLECTIONS.alertRules(orgId)).doc(ruleId).set(rule);
 
+    // Log audit event
+    // Note: For API key auth, we don't have a userId, so we'll skip audit logging
+    // In a full implementation, API keys could be associated with users
+
     console.log(`[${requestId}] Created alert rule ${ruleId} for metric ${metricName}`);
 
     const responseData: AlertRuleResponse = { alert: rule };

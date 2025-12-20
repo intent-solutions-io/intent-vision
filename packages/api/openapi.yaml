@@ -1,0 +1,946 @@
+openapi: 3.0.3
+info:
+  title: IntentVision API
+  version: 1.0.0
+  description: |
+    IntentVision Production API for forecasting and alerting on business metrics.
+
+    ## Authentication
+    All requests require an API key provided via the `X-API-Key` header.
+
+    ## Environments
+    - Production: https://api.intentvision.com
+    - Sandbox: Use sandbox API keys for testing (limited functionality)
+
+    ## Rate Limits
+    - Production keys: Based on your plan
+    - Sandbox keys: 100 requests/day, 30-day history limit
+  contact:
+    name: IntentVision Support
+    email: support@intentvision.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.intentvision.com
+    description: Production server
+  - url: http://localhost:3000
+    description: Local development
+
+security:
+  - ApiKeyAuth: []
+
+tags:
+  - name: Events
+    description: Event ingestion endpoints
+  - name: Forecasts
+    description: Forecast generation and retrieval
+  - name: Alerts
+    description: Alert rule management
+  - name: Metrics
+    description: Metric management and timeseries data
+  - name: Organization
+    description: Organization and user management
+
+paths:
+  /v1/events:
+    post:
+      summary: Ingest event data
+      description: |
+        Ingest a single event data point for a metric. Events are processed
+        asynchronously and made available for forecasting.
+      operationId: ingestEvent
+      tags:
+        - Events
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestEventRequest'
+            examples:
+              mrr_event:
+                summary: Monthly Recurring Revenue
+                value:
+                  source: stripe
+                  metric: mrr
+                  timestamp: "2025-12-16T10:30:00Z"
+                  value: 125000
+                  dimensions:
+                    plan: growth
+                    region: us-west
+              signup_event:
+                summary: User Signup
+                value:
+                  source: app
+                  metric: signups
+                  timestamp: "2025-12-16T10:30:00Z"
+                  value: 1
+      responses:
+        '200':
+          description: Event accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestEventResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/metrics/{metricName}/forecasts:
+    get:
+      summary: Get forecasts for a metric
+      description: Retrieve the latest forecast or historical forecasts for a metric
+      operationId: getMetricForecasts
+      tags:
+        - Forecasts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: metricName
+          in: path
+          required: true
+          description: Name of the metric
+          schema:
+            type: string
+          example: mrr
+        - name: horizonDays
+          in: query
+          description: Forecast horizon in days
+          schema:
+            type: integer
+            default: 7
+            minimum: 1
+            maximum: 90
+        - name: from
+          in: query
+          description: Start date for forecast range (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End date for forecast range (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Forecast data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetMetricForecastsResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Metric not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/forecast/run:
+    post:
+      summary: Run forecast for a metric
+      description: |
+        Generate a new forecast for a metric. This endpoint triggers
+        forecast generation and returns the forecast ID immediately.
+      operationId: runForecast
+      tags:
+        - Forecasts
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunForecastRequest'
+            examples:
+              basic:
+                summary: Basic forecast
+                value:
+                  metricName: mrr
+                  horizonDays: 30
+              with_backend:
+                summary: With specific backend
+                value:
+                  metricName: churn_rate
+                  horizonDays: 14
+                  backend: statistical
+      responses:
+        '200':
+          description: Forecast generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunForecastResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit or plan limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/alerts:
+    get:
+      summary: List alert rules
+      description: Get all alert rules for your organization
+      operationId: listAlerts
+      tags:
+        - Alerts
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Alert rules retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListAlertRulesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Create alert rule
+      description: Create a new alert rule with notification channels
+      operationId: createAlert
+      tags:
+        - Alerts
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRuleRequest'
+            examples:
+              threshold_alert:
+                summary: Threshold alert with email
+                value:
+                  name: "MRR Below Target"
+                  description: "Alert when MRR forecast drops below $100k"
+                  type: threshold
+                  metricName: mrr
+                  condition:
+                    operator: lt
+                    value: 100000
+                  horizonDays: 7
+                  channels:
+                    - type: email
+                      to:
+                        - team@company.com
+                      enabled: true
+                  enabled: true
+      responses:
+        '201':
+          description: Alert rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertRuleResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/alerts/{alertId}:
+    get:
+      summary: Get alert rule
+      description: Get a specific alert rule by ID
+      operationId: getAlert
+      tags:
+        - Alerts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          description: Alert rule ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert rule retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertRuleResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      summary: Update alert rule
+      description: Update an existing alert rule
+      operationId: updateAlert
+      tags:
+        - Alerts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          description: Alert rule ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertRuleRequest'
+      responses:
+        '200':
+          description: Alert rule updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertRuleResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete alert rule
+      description: Delete an alert rule
+      operationId: deleteAlert
+      tags:
+        - Alerts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: alertId
+          in: path
+          required: true
+          description: Alert rule ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Alert rule deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/metrics:
+    get:
+      summary: List metrics
+      description: Get all metrics for your organization
+      operationId: listMetrics
+      tags:
+        - Metrics
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  metrics:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Metric'
+                  total:
+                    type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/metrics/{metricName}/timeseries:
+    get:
+      summary: Get metric timeseries data
+      description: Retrieve historical timeseries data for a metric
+      operationId: getMetricTimeseries
+      tags:
+        - Metrics
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: metricName
+          in: path
+          required: true
+          description: Name of the metric
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Start date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End date (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          description: Maximum number of data points
+          schema:
+            type: integer
+            default: 1000
+            maximum: 10000
+      responses:
+        '200':
+          description: Timeseries data retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimeseriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Metric not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orgs/self:
+    get:
+      summary: Get current organization
+      description: Get information about the authenticated organization
+      operationId: getOrganization
+      tags:
+        - Organization
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Organization retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Obtain from IntentVision dashboard.
+        Format: `iv_<random_string>`
+
+  schemas:
+    IngestEventRequest:
+      type: object
+      required:
+        - source
+        - metric
+        - timestamp
+        - value
+      properties:
+        source:
+          type: string
+          description: Data source identifier
+          example: stripe
+        metric:
+          type: string
+          description: Metric name (alphanumeric, underscores, hyphens)
+          pattern: '^[a-zA-Z0-9_-]+$'
+          example: mrr
+        timestamp:
+          type: string
+          format: date-time
+          description: Event timestamp in ISO 8601 format
+          example: "2025-12-16T10:30:00Z"
+        value:
+          type: number
+          description: Numeric value
+          example: 125000
+        dimensions:
+          type: object
+          description: Optional key-value dimensions for filtering
+          additionalProperties:
+            type: string
+          example:
+            plan: growth
+            region: us-west
+        metadata:
+          type: object
+          description: Optional metadata
+          additionalProperties: true
+
+    IngestEventResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [queued, accepted]
+          description: Processing status
+        eventId:
+          type: string
+          description: Unique event identifier
+          example: evt_abc123
+
+    GetMetricForecastsResponse:
+      type: object
+      properties:
+        metric:
+          type: string
+          description: Metric name
+          example: mrr
+        horizonDays:
+          type: integer
+          description: Forecast horizon in days
+          example: 7
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+                description: Forecast timestamp
+              predicted:
+                type: number
+                description: Predicted value
+              confidenceLower:
+                type: number
+                description: Lower bound of confidence interval
+              confidenceUpper:
+                type: number
+                description: Upper bound of confidence interval
+              confidenceScore:
+                type: number
+                description: Confidence score (0-1)
+                minimum: 0
+                maximum: 1
+
+    RunForecastRequest:
+      type: object
+      required:
+        - metricName
+      properties:
+        metricName:
+          type: string
+          description: Name of the metric to forecast
+          example: mrr
+        horizonDays:
+          type: integer
+          description: Number of days to forecast
+          default: 7
+          minimum: 1
+          maximum: 90
+          example: 30
+        backend:
+          type: string
+          enum: [statistical, nixtla]
+          description: Forecasting backend to use
+          default: statistical
+
+    RunForecastResponse:
+      type: object
+      properties:
+        forecastId:
+          type: string
+          description: Unique forecast identifier
+          example: fc_xyz789
+        metricName:
+          type: string
+          description: Metric name
+          example: mrr
+        horizonDays:
+          type: integer
+          description: Forecast horizon
+          example: 30
+        backend:
+          type: string
+          description: Backend used
+          example: statistical
+        pointsGenerated:
+          type: integer
+          description: Number of forecast points generated
+          example: 30
+        status:
+          type: string
+          enum: [completed, pending, failed]
+          description: Forecast status
+        sandbox:
+          type: boolean
+          description: Whether this is a sandbox forecast
+          example: false
+
+    CreateAlertRuleRequest:
+      type: object
+      required:
+        - name
+        - metricName
+        - channels
+      properties:
+        name:
+          type: string
+          description: Alert rule name
+          example: "MRR Below Target"
+        description:
+          type: string
+          description: Optional description
+          example: "Alert when MRR forecast drops below target"
+        type:
+          type: string
+          enum: [threshold, anomaly]
+          default: threshold
+          description: Alert type
+        metricName:
+          type: string
+          description: Metric to monitor
+          example: mrr
+        condition:
+          type: object
+          description: Condition for threshold alerts
+          required:
+            - operator
+            - value
+          properties:
+            operator:
+              type: string
+              enum: [gt, lt, gte, lte]
+              description: Comparison operator
+            value:
+              type: number
+              description: Threshold value
+        horizonDays:
+          type: integer
+          description: Forecast horizon to monitor
+          default: 7
+          minimum: 1
+          maximum: 90
+        channels:
+          type: array
+          description: Notification channels
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+        enabled:
+          type: boolean
+          description: Whether alert is active
+          default: true
+
+    UpdateAlertRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [threshold, anomaly]
+        metricName:
+          type: string
+        condition:
+          type: object
+          properties:
+            operator:
+              type: string
+              enum: [gt, lt, gte, lte]
+            value:
+              type: number
+        horizonDays:
+          type: integer
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+        enabled:
+          type: boolean
+
+    AlertRuleResponse:
+      type: object
+      properties:
+        alert:
+          $ref: '#/components/schemas/AlertRule'
+
+    ListAlertRulesResponse:
+      type: object
+      properties:
+        alerts:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlertRule'
+        total:
+          type: integer
+
+    AlertRule:
+      type: object
+      properties:
+        id:
+          type: string
+          example: alert_abc123
+        orgId:
+          type: string
+          example: org_xyz789
+        name:
+          type: string
+          example: "MRR Below Target"
+        description:
+          type: string
+        type:
+          type: string
+          enum: [threshold, anomaly]
+        metricName:
+          type: string
+          example: mrr
+        condition:
+          type: object
+          properties:
+            operator:
+              type: string
+            value:
+              type: number
+        horizonDays:
+          type: integer
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationChannel'
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    NotificationChannel:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [email, slack, webhook, sms]
+          description: Channel type
+        to:
+          type: array
+          items:
+            type: string
+          description: Email addresses (for email/sms)
+          example: ["team@company.com"]
+        slackChannel:
+          type: string
+          description: Slack channel ID or name
+          example: "#alerts"
+        webhookUrl:
+          type: string
+          format: uri
+          description: Webhook URL
+        enabled:
+          type: boolean
+          description: Whether channel is enabled
+          default: true
+
+    Metric:
+      type: object
+      properties:
+        id:
+          type: string
+        orgId:
+          type: string
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+        unit:
+          type: string
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastDataPoint:
+          type: string
+          format: date-time
+        dataPointCount:
+          type: integer
+
+    TimeseriesResponse:
+      type: object
+      properties:
+        metricName:
+          type: string
+        points:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp:
+                type: string
+                format: date-time
+              value:
+                type: number
+              metadata:
+                type: object
+                additionalProperties: true
+        total:
+          type: integer
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+          enum: [beta, starter, growth, enterprise]
+        status:
+          type: string
+          enum: [active, suspended, deleted]
+        createdAt:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Invalid API key"
+        code:
+          type: string
+          description: Machine-readable error code
+          example: "INVALID_API_KEY"
+        details:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+        requestId:
+          type: string
+          description: Request ID for debugging
+          example: "req_abc123"

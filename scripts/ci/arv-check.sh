@@ -1,9 +1,15 @@
 #!/bin/bash
-# Local ARV Check - runs same checks as CI
+# IntentVision CI Check Script
+# Phase 13: Production Deployment Infrastructure
+#
 # Usage: ./scripts/ci/arv-check.sh
 #
-# This script runs locally what the ARV Gate CI would run.
+# Runs linting and type checks equivalent to CI pipeline.
 # Use this before pushing to catch issues early.
+#
+# Exit codes:
+# 0 - All checks passed
+# 1 - One or more checks failed
 
 set -e
 
@@ -13,56 +19,93 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT"
 
 echo "============================================"
-echo "       IntentVision ARV Gate (Local)       "
+echo "    IntentVision CI Checks (Local)         "
 echo "============================================"
 echo ""
 
 FAILED=0
 PASSED=0
 
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
 run_check() {
     local name="$1"
-    local script="$2"
+    shift
+    local cmd=("$@")
 
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📋 $name"
+    echo "Check: $name"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-    if bash "$script"; then
+    if "${cmd[@]}"; then
         PASSED=$((PASSED + 1))
+        echo "PASSED"
         echo ""
+        return 0
     else
         FAILED=$((FAILED + 1))
+        echo "FAILED"
         echo ""
+        return 1
     fi
 }
 
-# Run all checks
-run_check "000-docs/ Flatness" "$SCRIPT_DIR/check-docs-flat.sh"
-run_check "6767 Standards Present" "$SCRIPT_DIR/check-standards-present.sh"
-run_check "AAR Template Valid" "$SCRIPT_DIR/check-aar-template.sh"
-run_check "Phase AARs Exist" "$SCRIPT_DIR/check-phase-aars.sh"
-run_check "Task IDs in Commits" "$SCRIPT_DIR/check-task-ids.sh"
-run_check "Lint/Formatting" "$SCRIPT_DIR/check-lint.sh"
-run_check "Security Scan" "$SCRIPT_DIR/check-security.sh"
+# =============================================================================
+# Core CI Checks
+# =============================================================================
 
+echo "Running core CI checks..."
+echo ""
+
+# Check 1: TypeScript Type Checking
+run_check "TypeScript Type Checking" npm run typecheck
+
+# Check 2: Contract Tests
+run_check "Contract Tests" npm run test:contracts
+
+# Check 3: Pipeline Tests
+run_check "Pipeline Tests" npm run test:pipeline
+
+# Check 4: Operator Tests
+run_check "Operator Tests" npm run test:operator
+
+# =============================================================================
+# Optional ARV Gate Checks (if scripts exist)
+# =============================================================================
+
+if [ -f "$SCRIPT_DIR/check-docs-flat.sh" ]; then
+    echo "Running ARV Gate checks..."
+    echo ""
+
+    run_check "000-docs/ Flatness" bash "$SCRIPT_DIR/check-docs-flat.sh" || true
+    run_check "6767 Standards Present" bash "$SCRIPT_DIR/check-standards-present.sh" || true
+    run_check "AAR Template Valid" bash "$SCRIPT_DIR/check-aar-template.sh" || true
+    run_check "Phase AARs Exist" bash "$SCRIPT_DIR/check-phase-aars.sh" || true
+    run_check "Task IDs in Commits" bash "$SCRIPT_DIR/check-task-ids.sh" || true
+    run_check "Lint/Formatting" bash "$SCRIPT_DIR/check-lint.sh" || true
+    run_check "Security Scan" bash "$SCRIPT_DIR/check-security.sh" || true
+fi
+
+# =============================================================================
 # Summary
+# =============================================================================
+
 echo "============================================"
-echo "               ARV SUMMARY                  "
+echo "             CHECK SUMMARY                  "
 echo "============================================"
 echo ""
-echo "✅ Passed: $PASSED"
-echo "❌ Failed: $FAILED"
+echo "Passed: $PASSED"
+echo "Failed: $FAILED"
 echo ""
 
 if [ "$FAILED" -gt 0 ]; then
-    echo "❌ ARV GATE: FAILED"
+    echo "FAILED - Fix the above issues before pushing"
     echo ""
-    echo "Fix the above issues before pushing."
     exit 1
 else
-    echo "✅ ARV GATE: PASSED"
+    echo "PASSED - All checks successful!"
     echo ""
-    echo "Ready to push!"
     exit 0
 fi

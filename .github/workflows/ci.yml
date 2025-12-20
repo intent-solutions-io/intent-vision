@@ -1,27 +1,39 @@
 # IntentVision CI/CD Pipeline
-# Beads Tasks: intentvision-xyq, intentvision-17y, intentvision-l2m
+# Phase F: Cloud Deployment Infrastructure
+# Beads Tasks: intentvision-xyq (Phase F Epic)
 #
 # Triggers on push to main and pull requests
 # Runs tests, builds, and deploys to Cloud Run
 #
 # Jobs:
 # - test: Unit/integration tests (no external deps)
-# - firestore-live-tests: Live Firestore tests (opt-in via secret)
 # - build: Docker image build
-# - deploy: Cloud Run deployment (main only)
-# - smoke-staging: Cloud smoke tests after deploy (Phase 9)
+# - deploy-staging: Cloud Run staging deployment (main branch)
+# - deploy-prod: Cloud Run production deployment (tags only)
+# - smoke-staging: Cloud smoke tests after staging deploy
+#
+# Infrastructure:
+# - GCP Project: intentvision (single project)
+# - Region: us-central1
+# - Database: Turso/libSQL only
+# - Domains: intentvision.intent-solutions.io (prod), stg.intentvision.intent-solutions.io (staging)
+# - Secrets: GCP Secret Manager with {env}-{service}-{key} naming
 
 name: CI/CD Pipeline
 
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*.*.*'
   pull_request:
     branches: [main]
 
 env:
   NODE_VERSION: '20'
+  GCP_PROJECT_ID: intentvision
   GCP_REGION: us-central1
+  GCP_ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
 
 jobs:
   # =============================================================================
@@ -44,8 +56,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run typecheck || true
+      - name: Run typecheck
+        run: npm run typecheck
 
       - name: Run contract tests
         run: npm run test:contracts
@@ -61,71 +73,6 @@ jobs:
         if: always()
         with:
           fail_ci_if_error: false
-
-  # =============================================================================
-  # Firestore Live Tests Job - Test against real GCP Firestore (opt-in)
-  # =============================================================================
-  # This job runs live tests against a real GCP Firestore instance.
-  # It is gated by the INTENTVISION_FIRESTORE_LIVE_TESTS secret.
-  #
-  # Required secrets for this job:
-  # - INTENTVISION_FIRESTORE_LIVE_TESTS: Set to '1' to enable
-  # - INTENTVISION_GCP_PROJECT_ID: GCP project with Firestore
-  # - GCP_WORKLOAD_IDENTITY_PROVIDER: WIF provider (or use GCP_SA_KEY)
-  # - GCP_SERVICE_ACCOUNT_EMAIL: Service account for WIF
-  # - GCP_SA_KEY (alternative): Service account JSON key
-  #
-  firestore-live-tests:
-    name: Firestore Live Tests (Dev)
-    runs-on: ubuntu-latest
-    needs: test
-    if: ${{ vars.INTENTVISION_FIRESTORE_LIVE_TESTS == '1' || secrets.INTENTVISION_FIRESTORE_LIVE_TESTS == '1' }}
-
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          # Option A: Workload Identity Federation (recommended)
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-          # Option B: Service account key (fallback)
-          # credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.INTENTVISION_GCP_PROJECT_ID }}
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Firestore live tests
-        env:
-          INTENTVISION_GCP_PROJECT_ID: ${{ secrets.INTENTVISION_GCP_PROJECT_ID }}
-          INTENTVISION_ENV: dev
-          INTENTVISION_FIRESTORE_LIVE_TESTS: '1'
-        run: npm run test:firestore:live --workspace=@intentvision/api
-        working-directory: ./
-
-      - name: Report test results
-        if: always()
-        run: |
-          echo "Firestore Live Tests completed"
-          echo "Project: ${{ secrets.INTENTVISION_GCP_PROJECT_ID }}"
-          echo "Environment: dev"
 
   # =============================================================================
   # Build Job - Build Docker image
@@ -165,10 +112,15 @@ jobs:
           docker stop test-container
 
   # =============================================================================
-  # Deploy Job - Deploy to Cloud Run (only on main)
+  # Deploy Staging Job - Deploy to Cloud Run Staging (main branch only)
   # =============================================================================
-  deploy:
-    name: Deploy
+  # GCP Project: intentvision (single project for all environments)
+  # Service: intentvision-api-staging
+  # Domain: stg.intentvision.intent-solutions.io
+  # Database: Turso/libSQL (staging-turso-url, staging-turso-token)
+  #
+  deploy-staging:
+    name: Deploy Staging
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -184,53 +136,182 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          # WIF provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Configure Docker
-        run: gcloud auth configure-docker gcr.io --quiet
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_ARTIFACT_REGISTRY }} --quiet
 
-      - name: Build and push image
+      - name: Build and push staging image
+        env:
+          IMAGE_NAME: ${{ env.GCP_ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/intentvision/api
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:${{ github.sha }} .
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:latest .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:${{ github.sha }}
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:latest
+          docker build -t ${IMAGE_NAME}:${{ github.sha }} \
+                       -t ${IMAGE_NAME}:staging-latest \
+                       --build-arg INTENTVISION_ENV=staging .
+          docker push ${IMAGE_NAME}:${{ github.sha }}
+          docker push ${IMAGE_NAME}:staging-latest
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to Cloud Run Staging
+        env:
+          IMAGE_NAME: ${{ env.GCP_ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/intentvision/api
         run: |
-          gcloud run deploy intentvision \
-            --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/intentvision:${{ github.sha }} \
+          gcloud run deploy intentvision-api-staging \
+            --image ${IMAGE_NAME}:${{ github.sha }} \
             --platform managed \
             --region ${{ env.GCP_REGION }} \
             --allow-unauthenticated \
-            --set-secrets "INTENTVISION_DB_URL=turso-database-url:latest,INTENTVISION_DB_AUTH_TOKEN=turso-auth-token:latest"
+            --set-env-vars "INTENTVISION_ENV=staging,NODE_ENV=production" \
+            --set-secrets "INTENTVISION_DB_URL=staging-turso-url:latest,INTENTVISION_DB_AUTH_TOKEN=staging-turso-token:latest" \
+            --memory 512Mi \
+            --cpu 1 \
+            --max-instances 10 \
+            --timeout 60s \
+            --service-account ${{ secrets.GCP_SA_EMAIL }}
 
-      - name: Verify deployment
+      - name: Verify staging deployment
         run: |
-          SERVICE_URL=$(gcloud run services describe intentvision \
+          SERVICE_URL=$(gcloud run services describe intentvision-api-staging \
             --region ${{ env.GCP_REGION }} \
             --format 'value(status.url)')
-          curl -f "${SERVICE_URL}/health" || exit 1
-          echo "Deployed to: ${SERVICE_URL}"
+          echo "Staging URL: ${SERVICE_URL}"
+
+          # Health check with retry
+          for i in {1..5}; do
+            if curl -f -s "${SERVICE_URL}/health" | grep -q '"status":"healthy"'; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Health check attempt $i failed, retrying..."
+            sleep 5
+          done
+          exit 1
+
+      - name: Output staging URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe intentvision-api-staging \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "::notice title=Staging Deployed::${SERVICE_URL}"
+          echo "Custom domain: https://stg.intentvision.intent-solutions.io"
 
   # =============================================================================
-  # Smoke Staging Job - Cloud Smoke Tests (Phase 9)
+  # Deploy Production Job - Deploy to Cloud Run Production (tags only)
+  # =============================================================================
+  # GCP Project: intentvision (single project for all environments)
+  # Service: intentvision-api
+  # Domain: intentvision.intent-solutions.io
+  # Database: Turso/libSQL (prod-turso-url, prod-turso-token)
+  #
+  deploy-prod:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    # Only run on version tags (e.g., v1.0.0, v1.2.3)
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Deploying version: ${VERSION}"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          # WIF provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_ARTIFACT_REGISTRY }} --quiet
+
+      - name: Build and push production image
+        env:
+          IMAGE_NAME: ${{ env.GCP_ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/intentvision/api
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          docker build -t ${IMAGE_NAME}:${VERSION} \
+                       -t ${IMAGE_NAME}:latest \
+                       --build-arg INTENTVISION_ENV=production .
+          docker push ${IMAGE_NAME}:${VERSION}
+          docker push ${IMAGE_NAME}:latest
+
+      - name: Deploy to Cloud Run Production
+        env:
+          IMAGE_NAME: ${{ env.GCP_ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/intentvision/api
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gcloud run deploy intentvision-api \
+            --image ${IMAGE_NAME}:${VERSION} \
+            --platform managed \
+            --region ${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "INTENTVISION_ENV=production,NODE_ENV=production" \
+            --set-secrets "INTENTVISION_DB_URL=prod-turso-url:latest,INTENTVISION_DB_AUTH_TOKEN=prod-turso-token:latest" \
+            --memory 1Gi \
+            --cpu 2 \
+            --min-instances 1 \
+            --max-instances 100 \
+            --timeout 60s \
+            --service-account ${{ secrets.GCP_SA_EMAIL }}
+
+      - name: Verify production deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe intentvision-api \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "Production URL: ${SERVICE_URL}"
+
+          # Health check with retry
+          for i in {1..5}; do
+            if curl -f -s "${SERVICE_URL}/health" | grep -q '"status":"healthy"'; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Health check attempt $i failed, retrying..."
+            sleep 5
+          done
+          exit 1
+
+      - name: Output production URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe intentvision-api \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "::notice title=Production Deployed::${SERVICE_URL} (version ${{ steps.version.outputs.version }})"
+          echo "Custom domain: https://intentvision.intent-solutions.io"
+
+  # =============================================================================
+  # Smoke Staging Job - Cloud Smoke Tests
   # =============================================================================
   # This job runs smoke tests against the deployed staging service.
-  # Validates Firestore connectivity and basic operations in the cloud.
-  #
-  # Required secrets:
-  # - INTENTVISION_STAGING_URL: Staging API URL (e.g., https://intentvision-api-staging.run.app)
-  # - INTENTVISION_GCP_PROJECT_ID: GCP project for context (optional)
+  # Validates Turso connectivity and basic operations in the cloud.
   #
   smoke-staging:
     name: Cloud Smoke Tests (Staging)
     runs-on: ubuntu-latest
-    needs: deploy
+    needs: deploy-staging
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -248,14 +329,12 @@ jobs:
 
       - name: Get Service URL
         id: service-url
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
-          # Use configured staging URL or construct from deploy
+          # Use configured staging URL or construct from Cloud Run
           if [ -n "${{ secrets.INTENTVISION_STAGING_URL }}" ]; then
             echo "url=${{ secrets.INTENTVISION_STAGING_URL }}" >> $GITHUB_OUTPUT
           else
-            echo "url=https://intentvision-${{ env.GCP_REGION }}.a.run.app" >> $GITHUB_OUTPUT
+            echo "url=https://stg.intentvision.intent-solutions.io" >> $GITHUB_OUTPUT
           fi
 
       - name: Run Smoke Tests
@@ -272,6 +351,7 @@ jobs:
           echo "Cloud Smoke Tests completed"
           echo "========================================"
           echo "Target URL: ${{ steps.service-url.outputs.url }}"
+          echo "Project: ${{ env.GCP_PROJECT_ID }}"
           echo "Timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           echo "========================================"
 
@@ -281,14 +361,16 @@ jobs:
   notify:
     name: Notify
     runs-on: ubuntu-latest
-    needs: [test, build, deploy, smoke-staging]
+    needs: [test, build, deploy-staging, deploy-prod, smoke-staging]
     if: always()
 
     steps:
       - name: Send notification
         run: |
-          if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "Deployment successful!"
+          if [ "${{ needs.deploy-prod.result }}" == "success" ]; then
+            echo "Production deployment successful!"
+          elif [ "${{ needs.deploy-staging.result }}" == "success" ]; then
+            echo "Staging deployment successful!"
           elif [ "${{ needs.test.result }}" == "failure" ]; then
             echo "Tests failed!"
           elif [ "${{ needs.build.result }}" == "failure" ]; then

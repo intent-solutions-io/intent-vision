@@ -1,0 +1,36 @@
+# IntentVision A2A Gateway Dockerfile (Cloud Run)
+#
+# Beads Task: intentvision-9xh
+#
+# Build from adk/ directory context
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY agents/ /app/agents/
+COPY service/ /app/service/
+
+# Set Python path
+ENV PYTHONPATH=/app
+ENV PORT=8081
+
+# Expose port
+EXPOSE 8081
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Run with uvicorn
+CMD exec uvicorn service.a2a_gateway.main:app --host 0.0.0.0 --port ${PORT}

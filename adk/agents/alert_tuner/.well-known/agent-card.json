@@ -1,0 +1,85 @@
+{
+  "protocol_version": "0.3.0",
+  "name": "alert-tuner",
+  "version": "0.14.1",
+  "url": "https://agents.intentvision.intent-solutions.io/alert-tuner",
+  "description": "IntentVision Alert Tuner - Specialist in alert optimization and noise reduction.\n\nIdentity: spiffe://intent-solutions.io/agent/alert-tuner/dev/us-central1/0.14.1",
+  "capabilities": [
+    "alert_analysis",
+    "threshold_optimization",
+    "noise_reduction",
+    "rule_consolidation"
+  ],
+  "default_input_modes": ["text"],
+  "default_output_modes": ["text"],
+  "preferred_transport": "JSONRPC",
+  "skills": [
+    {
+      "name": "Analyze Alerts",
+      "description": "Analyze alert rules and firing patterns to identify issues",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "alert_rule_id": {"type": "string"},
+          "time_range": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "total_rules": {"type": "number"},
+          "noisy_rules": {"type": "array", "items": {"type": "string"}},
+          "issues": {"type": "array", "items": {"type": "string"}},
+          "recommendations": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
+    {
+      "name": "Recommend Threshold",
+      "description": "Recommend optimal threshold for an alert rule",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "metric_key"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "metric_key": {"type": "string"},
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "current_threshold": {"type": "number"},
+          "recommended_threshold": {"type": "number"},
+          "percentile": {"type": "number"},
+          "rationale": {"type": "string"},
+          "expected_reduction": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "Reduce Fatigue",
+      "description": "Create a plan to reduce alert fatigue for an organization",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "target_reduction": {"type": "number", "description": "Target percentage reduction"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "current_daily_alerts": {"type": "number"},
+          "projected_daily_alerts": {"type": "number"},
+          "actions": {"type": "array", "items": {"type": "object"}},
+          "timeline": {"type": "string"}
+        }
+      }
+    }
+  ],
+  "spiffe_id": "spiffe://intent-solutions.io/agent/alert-tuner/dev/us-central1/0.14.1"
+}

@@ -26,6 +26,9 @@ import {
   type ForecastDemoRequest,
   type ForecastBackendType,
 } from '../services/forecast-demo-service.js';
+import { getOrganizationById } from '../services/org-service.js';
+import type { PlanId } from '../models/plan.js';
+import type { OrganizationPlan } from '../firestore/schema.js';
 
 // =============================================================================
 // Types
@@ -64,6 +67,18 @@ interface ForecastRequestBody {
 
 function generateRequestId(): string {
   return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Map OrganizationPlan (from Firestore) to PlanId (from plan model)
+ * Phase 18: Backend selection needs PlanId
+ */
+function mapOrganizationPlanToPlanId(orgPlan: OrganizationPlan): PlanId {
+  // 'beta' plan maps to 'free' for backend selection
+  if (orgPlan === 'beta') {
+    return 'free';
+  }
+  return orgPlan as PlanId;
 }
 
 async function parseBody<T>(req: IncomingMessage): Promise<T> {
@@ -228,6 +243,10 @@ export async function handleDemoForecast(
 
     const { orgId } = authContext;
 
+    // Phase 18: Get organization to determine plan for backend selection
+    const org = await getOrganizationById(orgId);
+    const planId = org ? mapOrganizationPlanToPlanId(org.plan) : 'free';
+
     // Run forecast via service
     const request: ForecastDemoRequest = {
       orgId,
@@ -235,37 +254,56 @@ export async function handleDemoForecast(
       horizonDays,
       backend,
       statMethod,
+      planId, // Phase 18: Pass plan for backend selection
     };
 
     const result = await runDemoForecast(request);
 
     console.log(
-      `[${requestId}] Demo forecast: ${result.outputPointsCount} points using ${backend} for ${orgId}/${metricId}`
+      `[${requestId}] Demo forecast: ${result.outputPointsCount} points using ${result.backend} for ${orgId}/${metricId}`
     );
+
+    // Phase 18: Include backend selection metadata in response
+    const responseData: Record<string, unknown> = {
+      forecastId: result.forecastId,
+      orgId: result.orgId,
+      metricId: result.metricId,
+      horizonDays: result.horizonDays,
+      backend: result.backend,
+      inputPointsCount: result.inputPointsCount,
+      outputPointsCount: result.outputPointsCount,
+      generatedAt: result.generatedAt,
+      modelInfo: result.modelInfo,
+      points: result.points,
+    };
+
+    // Include backend selection info if available
+    if (result.backendSelection) {
+      responseData.backendSelection = result.backendSelection;
+    }
 
     sendJson(res, 200, {
       success: true,
       requestId,
       timestamp: new Date().toISOString(),
-      data: {
-        forecastId: result.forecastId,
-        orgId: result.orgId,
-        metricId: result.metricId,
-        horizonDays: result.horizonDays,
-        backend: result.backend,
-        inputPointsCount: result.inputPointsCount,
-        outputPointsCount: result.outputPointsCount,
-        generatedAt: result.generatedAt,
-        modelInfo: result.modelInfo,
-        points: result.points,
-      },
+      data: responseData,
       durationMs: Date.now() - startMs,
     });
   } catch (error) {
     const errorMessage = (error as Error).message;
     console.error(`[${requestId}] Demo forecast error:`, errorMessage);
 
-    const statusCode = errorMessage.includes('Insufficient data') ? 400 : 500;
+    // Phase 18: Return 429 for quota/limit errors
+    let statusCode = 500;
+    if (errorMessage.includes('Insufficient data')) {
+      statusCode = 400;
+    } else if (
+      errorMessage.includes('limit reached') ||
+      errorMessage.includes('not available on your plan') ||
+      errorMessage.includes('exceeds plan limit')
+    ) {
+      statusCode = 429; // Too Many Requests / Quota Exceeded
+    }
 
     sendJson(res, statusCode, {
       success: false,

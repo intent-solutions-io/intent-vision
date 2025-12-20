@@ -1,0 +1,32 @@
+{
+  "projects": {
+    "default": "intentvision-dev",
+    "dev": "intentvision-dev",
+    "staging": "intentvision-staging",
+    "production": "intentvision-prod"
+  },
+  "targets": {
+    "intentvision-dev": {
+      "hosting": {
+        "web": [
+          "intentvision-dev"
+        ]
+      }
+    },
+    "intentvision-staging": {
+      "hosting": {
+        "web": [
+          "intentvision-staging"
+        ]
+      }
+    },
+    "intentvision-prod": {
+      "hosting": {
+        "web": [
+          "intentvision-prod"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

@@ -18,7 +18,16 @@
     "test:firestore:live": "INTENTVISION_FIRESTORE_LIVE_TESTS=1 vitest run tests/firestore-live --reporter=verbose",
     "test:e2e:alerts": "INTENTVISION_E2E_ALERTS=1 vitest run tests/alerts-e2e --reporter=verbose",
     "alert:test": "tsx src/scripts/test-alert.ts",
-    "smoke:staging": "tsx src/scripts/smoke-cloud-staging.ts"
+    "smoke:staging": "tsx src/scripts/smoke-cloud-staging.ts",
+    "usage:report": "tsx src/scripts/usage-report.ts",
+    "billing:snapshot": "tsx src/scripts/billing-snapshot.ts",
+    "openapi:validate": "tsx src/scripts/validate-openapi.ts",
+    "load:test": "tsx src/scripts/load-test.ts",
+    "load:test:baseline": "tsx src/scripts/load-test.ts --profile=baseline",
+    "load:test:growth": "tsx src/scripts/load-test.ts --profile=growth",
+    "load:test:stress": "tsx src/scripts/load-test.ts --profile=stress",
+    "load:test:staging": "tsx src/scripts/load-test.ts --profile=baseline --target=$STAGING_URL",
+    "incident:summary": "tsx src/scripts/incident-summary.ts"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.0",

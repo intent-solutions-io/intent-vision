@@ -1,0 +1,92 @@
+{
+  "protocol_version": "0.3.0",
+  "name": "onboarding-coach",
+  "version": "0.14.1",
+  "url": "https://agents.intentvision.intent-solutions.io/onboarding-coach",
+  "description": "IntentVision Onboarding Coach - Specialist in metric connection and configuration assistance.\n\nIdentity: spiffe://intent-solutions.io/agent/onboarding-coach/dev/us-central1/0.14.1",
+  "capabilities": [
+    "connection_guidance",
+    "metric_configuration",
+    "data_source_integration",
+    "setup_assistance"
+  ],
+  "default_input_modes": ["text"],
+  "default_output_modes": ["text"],
+  "preferred_transport": "JSONRPC",
+  "skills": [
+    {
+      "name": "Guide Connection",
+      "description": "Guide user through connecting a data source",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "source_type"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "source_type": {"type": "string", "enum": ["stripe", "posthog", "webhook", "csv"]},
+          "description": {"type": "string", "description": "What the user wants to track"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "steps": {"type": "array", "items": {"type": "object"}},
+          "requirements": {"type": "array", "items": {"type": "string"}},
+          "estimated_time": {"type": "string"},
+          "next_action": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "Suggest Metrics",
+      "description": "Suggest metrics to track based on data source and goals",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "source_type"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "source_type": {"type": "string"},
+          "business_goal": {"type": "string", "description": "What the user wants to predict/monitor"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "suggested_metrics": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "description": {"type": "string"},
+                "aggregation": {"type": "string"},
+                "recommended_backend": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Configure Initial Setup",
+      "description": "Help configure the initial IntentVision setup for an organization",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "industry": {"type": "string"},
+          "primary_use_case": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "recommended_config": {"type": "object"},
+          "quick_start_steps": {"type": "array", "items": {"type": "string"}},
+          "documentation_links": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  ],
+  "spiffe_id": "spiffe://intent-solutions.io/agent/onboarding-coach/dev/us-central1/0.14.1"
+}

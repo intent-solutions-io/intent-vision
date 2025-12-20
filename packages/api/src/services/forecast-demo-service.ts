@@ -26,6 +26,13 @@ import {
   type ForecastOptions as StatForecastOptions,
 } from '../forecast/statistical-backend.js';
 import type { TimeSeriesPoint } from '../firestore/schema.js';
+import type { PlanId } from '../models/plan.js';
+import {
+  selectBackend,
+  type BackendSelectionResult,
+} from '../forecast/backend-router.js';
+import { incrementBackendUsage } from './backend-usage-service.js';
+import type { ForecastBackend } from '../forecast/backend-policy.js';
 
 // =============================================================================
 // Types
@@ -40,6 +47,8 @@ export interface ForecastDemoRequest {
   backend?: ForecastBackendType;
   /** For stat backend: which method to use */
   statMethod?: 'sma' | 'ewma' | 'linear';
+  /** Organization plan (for backend selection) */
+  planId?: PlanId;
 }
 
 export interface ForecastDemoResponse {
@@ -55,6 +64,18 @@ export interface ForecastDemoResponse {
   modelInfo?: {
     name: string;
     version?: string;
+  };
+  /** Backend selection metadata (Phase 18) */
+  backendSelection?: {
+    requested?: ForecastBackendType;
+    selected: ForecastBackendType;
+    rationale: string;
+    fallback?: ForecastBackendType;
+    warning?: string;
+    costEstimate?: {
+      credits: number;
+      usdEstimate: number;
+    };
   };
 }
 
@@ -78,6 +99,41 @@ export interface MetricDataResponse {
   metric: MetricDefinition;
   recentPoints: MetricPoint[];
   latestForecast: ForecastResult | null;
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Map ForecastBackendType to ForecastBackend
+ */
+function mapBackendType(backendType: ForecastBackendType): ForecastBackend {
+  switch (backendType) {
+    case 'stat':
+    case 'stub':
+      return 'statistical';
+    case 'timegpt':
+      return 'nixtla';
+    default:
+      return 'statistical';
+  }
+}
+
+/**
+ * Map ForecastBackend back to ForecastBackendType
+ */
+function mapToBackendType(backend: ForecastBackend): ForecastBackendType {
+  switch (backend) {
+    case 'statistical':
+      return 'stat';
+    case 'nixtla':
+      return 'timegpt';
+    case 'llm':
+      return 'stat'; // Fallback to stat for now (LLM not implemented yet)
+    default:
+      return 'stat';
+  }
 }
 
 // =============================================================================
@@ -288,10 +344,11 @@ export async function runDemoForecast(
   request: ForecastDemoRequest
 ): Promise<ForecastDemoResponse> {
   const repo = getMetricsRepository();
-  const backend = request.backend || 'stat';
+  const requestedBackend = request.backend || 'stat';
+  const planId = request.planId || 'free'; // Default to free plan if not provided
 
   console.log(
-    `[ForecastDemo] Running ${backend} forecast for ${request.orgId}/${request.metricId}`
+    `[ForecastDemo] Running ${requestedBackend} forecast for ${request.orgId}/${request.metricId}`
   );
 
   // Get recent points
@@ -307,10 +364,38 @@ export async function runDemoForecast(
     );
   }
 
-  // Run forecast based on backend
+  // Phase 18: Select backend based on plan and quotas
+  let backendSelection: BackendSelectionResult | undefined;
+  let actualBackend = requestedBackend;
+
+  // Only use backend router if plan is provided (Phase 18 feature)
+  if (request.planId) {
+    try {
+      backendSelection = await selectBackend({
+        orgId: request.orgId,
+        planId,
+        metricId: request.metricId,
+        requestedBackend: mapBackendType(requestedBackend),
+        historyPoints: points.length,
+        horizonDays: request.horizonDays,
+      });
+
+      // Use the selected backend
+      actualBackend = mapToBackendType(backendSelection.backend);
+
+      console.log(
+        `[ForecastDemo] Backend selection: requested=${requestedBackend}, selected=${actualBackend}, rationale=${backendSelection.rationale}`
+      );
+    } catch (error) {
+      console.error('[ForecastDemo] Backend selection failed:', error);
+      throw error;
+    }
+  }
+
+  // Run forecast based on selected backend
   let forecastResult: { predictions: MetricPoint[]; modelInfo: { name: string; version: string } };
 
-  switch (backend) {
+  switch (actualBackend) {
     case 'stub':
       forecastResult = await stubForecast(points, request.horizonDays);
       break;
@@ -330,6 +415,17 @@ export async function runDemoForecast(
   const generatedAt = new Date().toISOString();
   const forecastId = `fc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  // Phase 18: Track backend usage
+  if (request.planId) {
+    try {
+      await incrementBackendUsage(request.orgId, mapBackendType(actualBackend));
+      console.log(`[ForecastDemo] Tracked ${actualBackend} usage for ${request.orgId}`);
+    } catch (error) {
+      console.error('[ForecastDemo] Failed to track backend usage:', error);
+      // Don't fail the forecast if usage tracking fails
+    }
+  }
+
   // Save forecast result
   await repo.saveForecast({
     id: forecastId,
@@ -338,13 +434,13 @@ export async function runDemoForecast(
     horizonDays: request.horizonDays,
     generatedAt,
     points: forecastResult.predictions,
-    backend,
+    backend: actualBackend,
     inputPointsCount: points.length,
     modelInfo: forecastResult.modelInfo,
   });
 
   console.log(
-    `[ForecastDemo] Generated ${forecastResult.predictions.length} forecast points using ${backend}`
+    `[ForecastDemo] Generated ${forecastResult.predictions.length} forecast points using ${actualBackend}`
   );
 
   return {
@@ -352,12 +448,22 @@ export async function runDemoForecast(
     orgId: request.orgId,
     metricId: request.metricId,
     horizonDays: request.horizonDays,
-    backend,
+    backend: actualBackend,
     inputPointsCount: points.length,
     outputPointsCount: forecastResult.predictions.length,
     points: forecastResult.predictions,
     generatedAt,
     modelInfo: forecastResult.modelInfo,
+    backendSelection: backendSelection
+      ? {
+          requested: requestedBackend,
+          selected: actualBackend,
+          rationale: backendSelection.rationale,
+          fallback: backendSelection.fallback ? mapToBackendType(backendSelection.fallback) : undefined,
+          warning: backendSelection.warning,
+          costEstimate: backendSelection.costEstimate,
+        }
+      : undefined,
   };
 }
 

@@ -1,44 +1,20 @@
 /**
  * IntentVision Onboarding Page
  *
- * Phase 5: Customer Onboarding + Org/API Key Flow
- * Beads Task: intentvision-p5
+ * Phase 14: Customer Onboarding Flow + First Forecast Experience
  *
- * Collects organization name and slug, validates uniqueness,
- * creates org + user via API.
+ * Multi-step wizard for onboarding:
+ * 1. Organization setup (name + email)
+ * 2. Create first project
+ * 3. Connect sample data source OR skip
+ * 4. Run first forecast + see results
  */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import OnboardingWizard, { type WizardStep } from '../components/OnboardingWizard';
 
 const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '2rem',
-  },
-  card: {
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: '16px',
-    padding: '2.5rem',
-    maxWidth: '450px',
-    width: '100%',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  logo: {
-    fontSize: '1.75rem',
-    fontWeight: 'bold',
-    marginBottom: '0.5rem',
-    background: 'linear-gradient(90deg, #00d4ff, #7b2cbf)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  },
-  subtitle: {
-    color: '#a0a0a0',
-    marginBottom: '2rem',
-  },
   form: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -72,195 +48,380 @@ const styles = {
     fontSize: '0.75rem',
     color: '#ff6b6b',
   },
+  title: {
+    fontSize: '1.5rem',
+    fontWeight: 'bold',
+    marginBottom: '0.5rem',
+    color: '#fff',
+  },
+  subtitle: {
+    color: '#a0a0a0',
+    marginBottom: '2rem',
+  },
+  buttons: {
+    display: 'flex',
+    gap: '1rem',
+    marginTop: '1rem',
+  },
   button: {
+    flex: 1,
     padding: '1rem',
     borderRadius: '8px',
     fontSize: '1rem',
     fontWeight: '600',
     border: 'none',
     cursor: 'pointer',
+    transition: 'transform 0.2s, opacity 0.2s',
+  },
+  buttonPrimary: {
     background: 'linear-gradient(90deg, #00d4ff, #7b2cbf)',
     color: '#fff',
-    transition: 'transform 0.2s, opacity 0.2s',
-    marginTop: '1rem',
+  },
+  buttonSecondary: {
+    background: 'rgba(255, 255, 255, 0.1)',
+    color: '#fff',
   },
   buttonDisabled: {
     opacity: 0.5,
     cursor: 'not-allowed',
   },
-  success: {
-    background: 'rgba(0, 200, 100, 0.1)',
-    border: '1px solid rgba(0, 200, 100, 0.3)',
+  dataInfo: {
+    background: 'rgba(0, 212, 255, 0.1)',
+    border: '1px solid rgba(0, 212, 255, 0.3)',
     borderRadius: '8px',
     padding: '1rem',
-    marginTop: '1rem',
+    marginBottom: '1rem',
   },
-  apiKeyBox: {
-    background: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: '4px',
-    padding: '0.75rem',
-    fontFamily: 'monospace',
+  dataInfoTitle: {
     fontSize: '0.875rem',
-    wordBreak: 'break-all' as const,
-    marginTop: '0.5rem',
+    fontWeight: '600',
+    marginBottom: '0.5rem',
     color: '#00d4ff',
+  },
+  dataInfoText: {
+    fontSize: '0.75rem',
+    color: '#d0d0d0',
+  },
+  loading: {
+    textAlign: 'center' as const,
+    color: '#a0a0a0',
   },
 };
 
+const STEPS: WizardStep[] = [
+  { id: 'org', label: 'Organization', number: 1 },
+  { id: 'project', label: 'Project', number: 2 },
+  { id: 'data', label: 'Data Source', number: 3 },
+  { id: 'forecast', label: 'First Forecast', number: 4 },
+];
+
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const [orgName, setOrgName] = useState('');
-  const [slug, setSlug] = useState('');
-  const [email, setEmail] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState<{ orgId: string; apiKey?: string } | null>(null);
 
-  // Auto-generate slug from org name
-  const handleOrgNameChange = (value: string) => {
-    setOrgName(value);
-    const autoSlug = value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-    setSlug(autoSlug);
+  // Step 1: Organization
+  const [orgName, setOrgName] = useState('');
+  const [email, setEmail] = useState('');
+
+  // Step 2: Project
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectId, setProjectId] = useState('');
+
+  const handleStep1Next = async () => {
+    setError('');
+    if (!orgName.trim()) {
+      setError('Organization name is required');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setError('Valid email is required');
+      return;
+    }
+
+    setLoading(true);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setLoading(false);
+    setCurrentStep(2);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStep2Next = async () => {
     setError('');
+    if (!projectName.trim()) {
+      setError('Project name is required');
+      return;
+    }
+
     setLoading(true);
-
     try {
-      // Validate inputs
-      if (!orgName.trim()) {
-        throw new Error('Organization name is required');
-      }
-      if (!slug.trim() || !/^[a-z0-9-]+$/.test(slug)) {
-        throw new Error('Slug must be lowercase alphanumeric with hyphens');
-      }
-      if (!email.trim() || !email.includes('@')) {
-        throw new Error('Valid email is required');
-      }
-
-      // For demo purposes, we'll simulate the API call
-      // In production, this would call POST /v1/internal/organizations
-      // with proper Firebase Auth token
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // Mock success response
-      const mockOrgId = `org-${Date.now().toString(36)}`;
-      const mockApiKey = `iv_${slug}_${Math.random().toString(36).slice(2, 18)}`;
-
-      setSuccess({
-        orgId: mockOrgId,
-        apiKey: mockApiKey,
-      });
-
-      // In production, redirect to dashboard after success
-      // setTimeout(() => navigate('/dashboard'), 3000);
+      // Simulate API call to create project
+      // In production: POST /orgs/self/projects
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const mockProjectId = `proj-${Date.now().toString(36)}`;
+      setProjectId(mockProjectId);
+      setLoading(false);
+      setCurrentStep(3);
     } catch (err) {
       setError((err as Error).message);
-    } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.card}>
-          <h1 style={styles.logo}>Welcome!</h1>
-          <p style={styles.subtitle}>Your organization has been created.</p>
+  const handleStep3LoadData = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      // Simulate API call to load sample data
+      // In production: POST /projects/:id/sample-source
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setLoading(false);
+      setCurrentStep(4);
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
+  };
 
-          <div style={styles.success}>
-            <p><strong>Organization ID:</strong> {success.orgId}</p>
-            {success.apiKey && (
-              <>
-                <p style={{ marginTop: '1rem' }}>
-                  <strong>Your API Key (save this now!):</strong>
-                </p>
-                <div style={styles.apiKeyBox}>{success.apiKey}</div>
-                <p style={{ ...styles.hint, marginTop: '0.5rem' }}>
-                  This key will only be shown once.
-                </p>
-              </>
-            )}
-          </div>
+  const handleStep3Skip = () => {
+    setCurrentStep(4);
+  };
 
-          <button
-            style={styles.button}
-            onClick={() => navigate('/dashboard')}
-          >
-            Go to Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const handleStep4RunForecast = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      // Simulate API call to run first forecast
+      // In production: POST /projects/:id/first-forecast
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setLoading(false);
+      navigate(`/onboarding/success?projectId=${projectId}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setLoading(false);
+    }
+  };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1 style={styles.logo}>Create Your Account</h1>
-        <p style={styles.subtitle}>Get started with IntentVision in minutes.</p>
+    <OnboardingWizard currentStep={currentStep} totalSteps={4} steps={STEPS}>
+      {/* Step 1: Organization Setup */}
+      {currentStep === 1 && (
+        <>
+          <h2 style={styles.title}>Create Your Organization</h2>
+          <p style={styles.subtitle}>
+            Let's get started with IntentVision. First, tell us about your organization.
+          </p>
 
-        <form style={styles.form} onSubmit={handleSubmit}>
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Organization Name</label>
-            <input
-              type="text"
-              style={styles.input}
-              placeholder="Acme Inc"
-              value={orgName}
-              onChange={(e) => handleOrgNameChange(e.target.value)}
-              disabled={loading}
-            />
-          </div>
+          <form style={styles.form} onSubmit={(e) => e.preventDefault()}>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Organization Name</label>
+              <input
+                type="text"
+                style={styles.input}
+                placeholder="Acme Inc"
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                disabled={loading}
+              />
+            </div>
 
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>URL Slug</label>
-            <input
-              type="text"
-              style={styles.input}
-              placeholder="acme-inc"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase())}
-              disabled={loading}
-            />
-            <span style={styles.hint}>
-              Your dashboard: intentvision.io/{slug || 'your-slug'}
-            </span>
-          </div>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Email</label>
+              <input
+                type="email"
+                style={styles.input}
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
+              <span style={styles.hint}>
+                We'll use this to send you important updates and alerts
+              </span>
+            </div>
 
-          <div style={styles.fieldGroup}>
-            <label style={styles.label}>Email</label>
-            <input
-              type="email"
-              style={styles.input}
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
+            {error && <p style={styles.error}>{error}</p>}
+
+            <div style={styles.buttons}>
+              <button
+                type="button"
+                style={{
+                  ...styles.button,
+                  ...styles.buttonPrimary,
+                  ...(loading ? styles.buttonDisabled : {}),
+                }}
+                onClick={handleStep1Next}
+                disabled={loading}
+              >
+                {loading ? 'Creating...' : 'Continue'}
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+
+      {/* Step 2: Create Project */}
+      {currentStep === 2 && (
+        <>
+          <h2 style={styles.title}>Create Your First Project</h2>
+          <p style={styles.subtitle}>
+            Projects help you organize metrics and forecasts. Let's create your first one.
+          </p>
+
+          <form style={styles.form} onSubmit={(e) => e.preventDefault()}>
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Project Name</label>
+              <input
+                type="text"
+                style={styles.input}
+                placeholder="My SaaS Metrics"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <label style={styles.label}>Description (Optional)</label>
+              <input
+                type="text"
+                style={styles.input}
+                placeholder="Track key business metrics"
+                value={projectDescription}
+                onChange={(e) => setProjectDescription(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+
+            {error && <p style={styles.error}>{error}</p>}
+
+            <div style={styles.buttons}>
+              <button
+                type="button"
+                style={{
+                  ...styles.button,
+                  ...styles.buttonSecondary,
+                }}
+                onClick={() => setCurrentStep(1)}
+                disabled={loading}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.button,
+                  ...styles.buttonPrimary,
+                  ...(loading ? styles.buttonDisabled : {}),
+                }}
+                onClick={handleStep2Next}
+                disabled={loading}
+              >
+                {loading ? 'Creating...' : 'Create Project'}
+              </button>
+            </div>
+          </form>
+        </>
+      )}
+
+      {/* Step 3: Connect Data Source */}
+      {currentStep === 3 && (
+        <>
+          <h2 style={styles.title}>Connect a Data Source</h2>
+          <p style={styles.subtitle}>
+            Try IntentVision with sample data, or skip this step to connect your own later.
+          </p>
+
+          <div style={styles.dataInfo}>
+            <div style={styles.dataInfoTitle}>Sample MRR Data</div>
+            <div style={styles.dataInfoText}>
+              We'll load 12 months of realistic Monthly Recurring Revenue data so you can see how
+              forecasting works.
+            </div>
           </div>
 
           {error && <p style={styles.error}>{error}</p>}
 
-          <button
-            type="submit"
-            style={{
-              ...styles.button,
-              ...(loading ? styles.buttonDisabled : {}),
-            }}
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : 'Create Organization'}
-          </button>
-        </form>
-      </div>
-    </div>
+          {loading && <div style={styles.loading}>Loading sample data...</div>}
+
+          <div style={styles.buttons}>
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                ...styles.buttonSecondary,
+              }}
+              onClick={handleStep3Skip}
+              disabled={loading}
+            >
+              Skip for Now
+            </button>
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                ...styles.buttonPrimary,
+                ...(loading ? styles.buttonDisabled : {}),
+              }}
+              onClick={handleStep3LoadData}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Load Sample Data'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Step 4: Run First Forecast */}
+      {currentStep === 4 && (
+        <>
+          <h2 style={styles.title}>Run Your First Forecast</h2>
+          <p style={styles.subtitle}>
+            Let's generate a forecast to see IntentVision in action. This will predict your MRR for
+            the next 3 months.
+          </p>
+
+          <div style={styles.dataInfo}>
+            <div style={styles.dataInfoTitle}>What will happen?</div>
+            <div style={styles.dataInfoText}>
+              IntentVision will analyze your historical data and generate predictions using
+              statistical models. You'll see a visual forecast with confidence intervals.
+            </div>
+          </div>
+
+          {error && <p style={styles.error}>{error}</p>}
+
+          {loading && <div style={styles.loading}>Generating your forecast...</div>}
+
+          <div style={styles.buttons}>
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                ...styles.buttonSecondary,
+              }}
+              onClick={() => setCurrentStep(3)}
+              disabled={loading}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              style={{
+                ...styles.button,
+                ...styles.buttonPrimary,
+                ...(loading ? styles.buttonDisabled : {}),
+              }}
+              onClick={handleStep4RunForecast}
+              disabled={loading}
+            >
+              {loading ? 'Generating...' : 'Run Forecast'}
+            </button>
+          </div>
+        </>
+      )}
+    </OnboardingWizard>
   );
 }
