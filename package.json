@@ -27,7 +27,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/intent-solutions-io/intentvision.git"
+    "url": "git+https://github.com/intent-solutions-io/intent-vision.git"
   },
   "keywords": [
     "prediction",
@@ -39,9 +39,9 @@
   "author": "Intent Solutions IO",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/intent-solutions-io/intentvision/issues"
+    "url": "https://github.com/intent-solutions-io/intent-vision/issues"
   },
-  "homepage": "https://github.com/intent-solutions-io/intentvision#readme",
+  "homepage": "https://github.com/intent-solutions-io/intent-vision#readme",
   "dependencies": {
     "@libsql/client": "^0.15.15",
     "agentfs-sdk": "^0.2.3",

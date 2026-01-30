@@ -1,0 +1,9 @@
+# Intent-Vision Code Owners
+# All PRs require review from Jeremy before merge
+
+# Global owners - all files
+* @jeremylongshore
+
+# Package-specific owners (can be expanded later)
+/packages/ @jeremylongshore
+/infrastructure/ @jeremylongshore
