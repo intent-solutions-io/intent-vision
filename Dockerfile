@@ -2,7 +2,7 @@
 # Multi-stage build for optimized Cloud Run deployment
 #
 # Phase 13: Production Deployment Infrastructure
-# Beads Task: intentvision-xyq.1
+# Finalized for Cloud Run (original task: intentvision-xyq.1 from Phase F)
 #
 # Build: docker build -t intentvision .
 # Run: docker run -p 8080:8080 -e INTENTVISION_ENV=staging -e INTENTVISION_DB_URL=... intentvision

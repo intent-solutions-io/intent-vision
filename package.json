@@ -1,6 +1,6 @@
 {
   "name": "intentvision",
-  "version": "0.1.0",
+  "version": "0.13.0",
   "description": "Universal Prediction Engine: Connect sources → Normalize metrics → Forecast/anomaly → Explain → Alert/API/dashboard/agent.",
   "type": "module",
   "private": true,

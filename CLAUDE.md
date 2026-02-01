@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Task Tracking (Beads / bd)
 - Use `bd` for ALL tasks/issues (no markdown TODO lists).
 - Start of session: `bd ready`
@@ -8,14 +12,9 @@
 - Manual testing safety:
   - Prefer `BEADS_DIR` to isolate a workspace if needed. (`BEADS_DB` exists but is deprecated.)
 
-
-# CLAUDE.md
-
-
 ### Beads upgrades
 - After upgrading `bd`, run: `bd info --whats-new`
 - If `bd info` warns about hooks, run: `bd hooks install`
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
