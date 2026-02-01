@@ -12,7 +12,7 @@
 
 import { authenticateRequest, type AuthResult } from '../auth/middleware.js';
 import { withTenantContext, type TenantContext } from '../tenant/context.js';
-import { getApiKeyManager } from '../auth/api-key.js';
+import { getApiKeyManager } from '../auth/api-keys.js';
 
 // =============================================================================
 // Types
@@ -99,11 +99,12 @@ export class ApiRouter {
     }
 
     // Execute handler within tenant context
-    const orgId = authResult.request?.orgId || 'anonymous';
+    const orgId = authResult.context?.orgId || 'anonymous';
     return withTenantContext(
       {
         orgId,
-        apiKey: authResult.request?.apiKey,
+        apiKey: authResult.context?.apiKey,
+        userId: authResult.context?.userId,
         source: {
           ip: req.headers['x-forwarded-for'],
           userAgent: req.headers['user-agent'],
@@ -157,7 +158,7 @@ export function createDefaultRouter(): ApiRouter {
     status: 200,
     body: {
       org_id: ctx.orgId,
-      scopes: ctx.apiKey?.scopes || [],
+      roles: ctx.apiKey?.roles || [],
       request_id: ctx.requestId,
     },
   }));
@@ -172,7 +173,7 @@ export function createDefaultRouter(): ApiRouter {
         keys: keys.map((k) => ({
           key_id: k.keyId,
           name: k.name,
-          scopes: k.scopes,
+          roles: k.roles,
           created_at: k.createdAt,
           expires_at: k.expiresAt,
           last_used_at: k.lastUsedAt,

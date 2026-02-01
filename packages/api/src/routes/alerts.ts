@@ -48,6 +48,7 @@ import {
   isResendConfigured,
   deliverToEmailChannel,
 } from '../notifications/resend.js';
+import { recordUsageEvent } from '../services/metering-service.js';
 
 // =============================================================================
 // Types
@@ -253,6 +254,10 @@ export async function handleCreateAlertRule(
     };
 
     await db.collection(COLLECTIONS.alertRules(orgId)).doc(ruleId).set(rule);
+
+    // Log audit event
+    // Note: For API key auth, we don't have a userId, so we'll skip audit logging
+    // In a full implementation, API keys could be associated with users
 
     console.log(`[${requestId}] Created alert rule ${ruleId} for metric ${metricName}`);
 
@@ -954,6 +959,15 @@ export async function handleEvaluateAlerts(
         };
 
         await db.collection(COLLECTIONS.alertEvents(orgId)).doc(eventId).set(alertEvent);
+
+        // Phase 11: Record usage event when alert is fired (only if delivery was attempted)
+        if (anyChannelSuccess || legacyEmailSent) {
+          await recordUsageEvent({
+            orgId,
+            eventType: 'alert_fired',
+            metadata: { ruleId: rule.id, eventId, metricName: rule.metricName },
+          });
+        }
 
         results.push({
           ruleId: rule.id,

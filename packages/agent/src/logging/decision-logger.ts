@@ -1,55 +1,105 @@
 /**
  * Decision Logger - Log agent decisions to AgentFS
  *
- * Task ID: intentvision-6g7.3
+ * Task ID: intentvision-rhs.3
  *
  * Logs all agent decisions for:
  * - Audit trail
  * - Debugging
  * - Performance analysis
  * - Decision replay
+ *
+ * Environment Variables:
+ * - AGENTFS_ENABLED: Set to '1' to enable persistent logging (default: off)
+ * - AGENTFS_DB_PATH: Path to AgentFS database (default: .agentfs/intentvision.db)
  */
 
+import { AgentFS } from 'agentfs-sdk';
 import type { DecisionLog } from '../types.js';
 
 // =============================================================================
-// AgentFS Integration
+// Configuration
 // =============================================================================
 
-interface AgentFSClient {
-  log(entry: Record<string, unknown>): Promise<void>;
-  snapshot(data: Record<string, unknown>): Promise<string>;
+interface AgentFSConfig {
+  enabled: boolean;
+  dbPath: string;
+  projectId: string;
 }
 
-let _client: AgentFSClient | null = null;
+function getConfig(): AgentFSConfig {
+  return {
+    enabled: process.env.AGENTFS_ENABLED === '1',
+    dbPath: process.env.AGENTFS_DB_PATH || '.agentfs/intentvision.db',
+    projectId: 'intentvision',
+  };
+}
+
+// =============================================================================
+// AgentFS Client
+// =============================================================================
+
+let _agentfs: Awaited<ReturnType<typeof AgentFS.open>> | null = null;
+let _initPromise: Promise<void> | null = null;
+let _config: AgentFSConfig | null = null;
 
 /**
  * Initialize AgentFS client
  */
 export function initializeAgentFS(config?: { dbPath?: string }): void {
-  // Stub implementation - would connect to actual AgentFS
-  _client = {
-    async log(entry: Record<string, unknown>): Promise<void> {
-      console.log('[AgentFS] Decision logged:', JSON.stringify(entry, null, 2));
-    },
-    async snapshot(data: Record<string, unknown>): Promise<string> {
-      const snapshotId = `snapshot-${Date.now()}`;
-      console.log(`[AgentFS] Snapshot created: ${snapshotId}`);
-      return snapshotId;
-    },
-  };
+  _config = getConfig();
 
-  console.log('[AgentFS] Initialized with config:', config);
+  if (config?.dbPath) {
+    _config.dbPath = config.dbPath;
+  }
+
+  if (!_config.enabled) {
+    console.log('[AgentFS] Decision logging disabled (set AGENTFS_ENABLED=1 to enable)');
+    return;
+  }
+
+  // Start async initialization
+  _initPromise = initAsync();
+}
+
+async function initAsync(): Promise<void> {
+  if (!_config) {
+    _config = getConfig();
+  }
+
+  try {
+    _agentfs = await AgentFS.open({ id: _config.projectId });
+    console.log(`[AgentFS] Connected to ${_config.dbPath}`);
+  } catch (error) {
+    console.error('[AgentFS] Failed to initialize:', error);
+    _agentfs = null;
+  }
 }
 
 /**
- * Get AgentFS client (auto-initialize if needed)
+ * Get AgentFS client (waits for initialization if needed)
  */
-function getClient(): AgentFSClient {
-  if (!_client) {
+async function getClient(): Promise<typeof _agentfs> {
+  if (!_config) {
     initializeAgentFS();
   }
-  return _client!;
+
+  if (!_config?.enabled) {
+    return null;
+  }
+
+  if (_initPromise) {
+    await _initPromise;
+  }
+
+  return _agentfs;
+}
+
+/**
+ * Check if AgentFS is enabled and connected
+ */
+export function isAgentFSEnabled(): boolean {
+  return _config?.enabled ?? false;
 }
 
 // =============================================================================
@@ -60,12 +110,32 @@ function getClient(): AgentFSClient {
  * Log a decision to AgentFS
  */
 export async function logDecision(log: DecisionLog): Promise<void> {
-  const client = getClient();
+  const client = await getClient();
 
-  await client.log({
-    logType: 'decision',
+  if (!client) {
+    // Fallback to console when disabled
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('[AgentFS:stub] Decision logged:', JSON.stringify(log, null, 2));
+    }
+    return;
+  }
+
+  // Store in KV store with decision key
+  const key = `decisions:${log.requestId}:${log.logId}`;
+  await client.kv.set(key, {
     ...log,
+    persistedAt: new Date().toISOString(),
   });
+
+  // Also record as tool call for audit trail
+  const startTime = new Date(log.timestamp).getTime() / 1000;
+  await client.tools.record(
+    `decision:${log.type}`,
+    startTime,
+    Date.now() / 1000,
+    { requestId: log.requestId, type: log.type },
+    { decision: log.decision, outcome: log.outcome }
+  );
 }
 
 /**
@@ -148,6 +218,57 @@ export async function logFinalAnswer(
 }
 
 // =============================================================================
+// Query Operations (for testing and debugging)
+// =============================================================================
+
+/**
+ * Get a logged decision by key
+ */
+export async function getDecision(requestId: string, logId: string): Promise<DecisionLog | null> {
+  const client = await getClient();
+
+  if (!client) {
+    return null;
+  }
+
+  const key = `decisions:${requestId}:${logId}`;
+  const result = await client.kv.get(key);
+  return result as DecisionLog | null;
+}
+
+/**
+ * Get all decisions for a request
+ */
+export async function getRequestDecisions(requestId: string): Promise<DecisionLog[]> {
+  const client = await getClient();
+
+  if (!client) {
+    return [];
+  }
+
+  // Note: This is a simplified implementation
+  // Real implementation would use a proper query mechanism
+  const decisions: DecisionLog[] = [];
+  const possibleLogIds = [
+    `${requestId}-route`,
+    `${requestId}-final`,
+    ...Array.from({ length: 10 }, (_, i) => `${requestId}-tool-select-${i + 1}`),
+    ...Array.from({ length: 10 }, (_, i) => `${requestId}-tool-exec-${i + 1}`),
+  ];
+
+  for (const logId of possibleLogIds) {
+    const decision = await getDecision(requestId, logId);
+    if (decision) {
+      decisions.push(decision);
+    }
+  }
+
+  return decisions.sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+}
+
+// =============================================================================
 // Snapshot Operations
 // =============================================================================
 
@@ -158,25 +279,28 @@ export async function createSnapshot(
   requestId: string,
   state: Record<string, unknown>
 ): Promise<string> {
-  const client = getClient();
+  const client = await getClient();
+  const snapshotId = `snapshot-${Date.now()}`;
 
-  return client.snapshot({
+  if (!client) {
+    console.log(`[AgentFS:stub] Snapshot created: ${snapshotId}`);
+    return snapshotId;
+  }
+
+  await client.kv.set(`snapshots:${snapshotId}`, {
     requestId,
     timestamp: new Date().toISOString(),
     state,
   });
+
+  return snapshotId;
 }
 
 /**
  * Log batch of decisions (for bulk import)
  */
 export async function logDecisionBatch(logs: DecisionLog[]): Promise<void> {
-  const client = getClient();
-
   for (const log of logs) {
-    await client.log({
-      logType: 'decision',
-      ...log,
-    });
+    await logDecision(log);
   }
 }

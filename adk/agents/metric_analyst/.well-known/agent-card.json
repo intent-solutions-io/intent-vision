@@ -1,0 +1,84 @@
+{
+  "protocol_version": "0.3.0",
+  "name": "metric-analyst",
+  "version": "0.14.1",
+  "url": "https://agents.intentvision.intent-solutions.io/metric-analyst",
+  "description": "IntentVision Metric Analyst - Specialist in forecast explanation and anomaly analysis.\n\nIdentity: spiffe://intent-solutions.io/agent/metric-analyst/dev/us-central1/0.14.1",
+  "capabilities": [
+    "forecast_explanation",
+    "anomaly_analysis",
+    "backend_comparison",
+    "trend_analysis"
+  ],
+  "default_input_modes": ["text"],
+  "default_output_modes": ["text"],
+  "preferred_transport": "JSONRPC",
+  "skills": [
+    {
+      "name": "Explain Forecast",
+      "description": "Provide detailed explanation of forecast predictions",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "metric_key"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "metric_key": {"type": "string"},
+          "time_range": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "summary": {"type": "string"},
+          "trend": {"type": "string"},
+          "confidence": {"type": "number"},
+          "details": {"type": "string"},
+          "recommendations": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    {
+      "name": "Analyze Anomaly",
+      "description": "Analyze and explain a detected anomaly",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "anomaly_id"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "anomaly_id": {"type": "string"}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "explanation": {"type": "string"},
+          "severity": {"type": "string"},
+          "likely_cause": {"type": "string"},
+          "recommended_action": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "Compare Backends",
+      "description": "Compare forecast backend performance",
+      "input_schema": {
+        "type": "object",
+        "required": ["org_id", "metric_key"],
+        "properties": {
+          "org_id": {"type": "string"},
+          "metric_key": {"type": "string"},
+          "backends": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "comparison": {"type": "object"},
+          "recommendation": {"type": "string"},
+          "rationale": {"type": "string"}
+        }
+      }
+    }
+  ],
+  "spiffe_id": "spiffe://intent-solutions.io/agent/metric-analyst/dev/us-central1/0.14.1"
+}

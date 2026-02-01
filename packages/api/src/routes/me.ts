@@ -18,6 +18,8 @@ import { getDb } from '../firestore/client.js';
 import { COLLECTIONS, type ApiKey, type ApiScope, type User, type Organization } from '../firestore/schema.js';
 import { createApiKey } from '../auth/api-key.js';
 import { getUserByAuthUid, getOrganizationById } from '../services/org-service.js';
+import { requirePermission } from '../auth/rbac.js';
+import { logAuditEvent } from '../services/audit-service.js';
 
 // =============================================================================
 // Types
@@ -318,13 +320,15 @@ export async function handleCreateMyApiKey(
       return;
     }
 
-    // Check if user has permission to create API keys (owner or admin only)
-    if (context.user.role !== 'owner' && context.user.role !== 'admin') {
+    // Check permission using RBAC - admin+ required to create API keys
+    try {
+      await requirePermission(context.organization.id, context.user.id, 'api_keys:create');
+    } catch (error) {
       sendJson(res, 403, {
         success: false,
         requestId,
         timestamp: new Date().toISOString(),
-        error: 'Only organization owners and admins can create API keys',
+        error: (error as Error).message,
       });
       return;
     }
@@ -351,6 +355,16 @@ export async function handleCreateMyApiKey(
     }
 
     const { apiKey, rawKey } = await createApiKey(context.organization.id, name, keyScopes);
+
+    // Log audit event
+    await logAuditEvent({
+      orgId: context.organization.id,
+      userId: context.user.id,
+      action: 'api_key.created',
+      resourceType: 'apiKey',
+      resourceId: apiKey.id,
+      metadata: { name, scopes: keyScopes },
+    });
 
     console.log(`[${requestId}] POST /v1/me/apiKeys - created key ${apiKey.keyPrefix}... for org ${context.organization.id}`);
 

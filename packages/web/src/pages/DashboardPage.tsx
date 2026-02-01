@@ -2,7 +2,8 @@
  * IntentVision Dashboard Page (Minimal Shell)
  *
  * Phase 5: Customer Onboarding + Org/API Key Flow
- * Beads Task: intentvision-p5
+ * Phase 10: Sellable Alpha Shell
+ * Beads Tasks: intentvision-p5, intentvision-9xn
  *
  * Shows user info, org info, and API keys.
  * Uses GET /v1/me and GET /v1/me/apiKeys endpoints.
@@ -172,7 +173,7 @@ export default function DashboardPage() {
   const [user] = useState(mockUser);
   const [org] = useState(mockOrg);
   const [apiKeys] = useState(mockApiKeys);
-  const [loading] = useState(false);
+  const [_loading] = useState(false);
 
   // In production, this would fetch from GET /v1/me and GET /v1/me/apiKeys
   useEffect(() => {
@@ -187,8 +188,8 @@ export default function DashboardPage() {
         </Link>
         <nav style={styles.nav}>
           <span style={{ ...styles.navLink, color: '#fff' }}>Dashboard</span>
-          <Link to="/" style={styles.navLink}>Settings</Link>
-          <Link to="/" style={styles.navLink}>Sign Out</Link>
+          <Link to="/alerts" style={styles.navLink}>Alerts</Link>
+          <Link to="/settings/notifications" style={styles.navLink}>Settings</Link>
         </nav>
       </header>
 

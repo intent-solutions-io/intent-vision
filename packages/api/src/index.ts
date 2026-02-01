@@ -3,7 +3,8 @@
  *
  * Phase 4: Production SaaS Control Plane + Public API v1
  * Phase 5: Customer Onboarding + Org/API Key Flow
- * Beads Tasks: intentvision-002, intentvision-8aj, intentvision-p88, intentvision-p5
+ * Phase E2E: Single-Metric Forecast Demo
+ * Beads Tasks: intentvision-002, intentvision-8aj, intentvision-p88, intentvision-p5, intentvision-r4j
  *
  * Main entry point for the IntentVision prediction engine.
  * Handles HTTP requests for:
@@ -11,6 +12,7 @@
  * - Forecasting (GET /v1/metrics/:name/forecasts)
  * - Alerts (POST/GET/PATCH/DELETE /v1/alerts)
  * - Internal operator endpoints (POST/GET /v1/internal/*)
+ * - Demo endpoints (POST/GET /v1/demo/*)
  * - Health checks
  */
 
@@ -40,6 +42,71 @@ import {
   handleListMyApiKeys,
   handleCreateMyApiKey,
 } from './routes/me.js';
+import {
+  handleDemoIngest,
+  handleDemoForecast,
+  handleDemoMetricGet,
+  handleDemoBackendsList,
+} from './routes/demo.js';
+import {
+  handleSmokeTest,
+  handleGetSmokeTest,
+  extractSmokeRunId,
+} from './routes/smoke.js';
+import {
+  handleCreateTenant,
+  handleGetTenant,
+  extractTenantSlug,
+} from './routes/tenants.js';
+import {
+  handleGetNotificationPreferences,
+  handleUpdateNotificationPreferences,
+  handleSendTestNotification,
+} from './routes/preferences.js';
+import {
+  handleGetDashboard,
+  handleGetDashboardAlerts,
+} from './routes/dashboard.js';
+import {
+  handleGetTodayUsage,
+  handleGetLast30DaysUsage,
+  handleGetUsageOverview,
+  extractAdminUsageParams,
+} from './routes/admin-usage.js';
+import {
+  handleGetBillingSummary,
+} from './routes/billing.js';
+import {
+  handleCreateProject,
+  handleListProjects,
+  handleAttachSampleSource,
+  handleRunFirstForecast,
+  extractProjectId,
+} from './routes/onboarding.js';
+import {
+  handleCreateInvitation,
+  handleAcceptInvitation,
+  handleListInvitations,
+  handleCancelInvitation,
+  extractInvitationToken,
+  extractInvitationId,
+} from './routes/invitations.js';
+import {
+  handleGetAuditLogs,
+} from './routes/audit.js';
+import {
+  handleListIncidents,
+  handleGetIncident,
+  handleAcknowledgeIncident,
+  handleResolveIncident,
+  extractIncidentId,
+} from './routes/incidents.js';
+import {
+  handleGenerateIncidentSummary,
+  handleGetAgentStatus,
+  extractIncidentIdForSummary,
+  isAgentStatusPath,
+} from './routes/agent.js';
 
 // =============================================================================
 // Configuration
@@ -336,6 +403,263 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
       return;
     }
 
+    // ==========================================================================
+    // Smoke Test Routes (Phase 9 - Cloud Smoke Tests)
+    // ==========================================================================
+
+    // POST /v1/internal/smoke - Run smoke test (no auth - infrastructure check)
+    if (pathname === '/v1/internal/smoke' && method === 'POST') {
+      await handleSmokeTest(req, res);
+      return;
+    }
+
+    // GET /v1/internal/smoke/:runId - Get smoke test result
+    const smokeRunId = extractSmokeRunId(pathname);
+    if (smokeRunId && method === 'GET') {
+      await handleGetSmokeTest(req, res, smokeRunId);
+      return;
+    }
+
+    // ==========================================================================
+    // Admin Usage Routes (Phase 11 - Usage Metering)
+    // ==========================================================================
+
+    // GET /admin/orgs/:orgId/usage/* - Admin usage endpoints
+    const usageParams = extractAdminUsageParams(pathname);
+    if (usageParams && method === 'GET') {
+      const { orgId, endpoint } = usageParams;
+      if (endpoint === 'today') {
+        await withAuth(req, res, (req, res, auth) => handleGetTodayUsage(req, res, auth, orgId));
+        return;
+      }
+      if (endpoint === 'last-30d') {
+        await withAuth(req, res, (req, res, auth) => handleGetLast30DaysUsage(req, res, auth, orgId));
+        return;
+      }
+      if (endpoint === 'overview') {
+        await withAuth(req, res, (req, res, auth) => handleGetUsageOverview(req, res, auth, orgId));
+        return;
+      }
+    }
+
+    // ==========================================================================
+    // Tenant Onboarding Routes (Phase 10 - Sellable Alpha Shell)
+    // ==========================================================================
+
+    // POST /v1/tenants - Create new tenant (public - self-service onboarding)
+    if (pathname === '/v1/tenants' && method === 'POST') {
+      await handleCreateTenant(req, res);
+      return;
+    }
+
+    // GET /v1/tenants/:slug - Get tenant info (API key auth required)
+    const tenantSlug = extractTenantSlug(pathname);
+    if (tenantSlug && method === 'GET') {
+      await withAuth(req, res, (req, res, auth) => handleGetTenant(req, res, auth, tenantSlug));
+      return;
+    }
+
+    // ==========================================================================
+    // Dashboard Routes (Phase 10 - Firebase Auth)
+    // ==========================================================================
+
+    // GET /v1/dashboard - Dashboard overview
+    if (pathname === '/v1/dashboard' && method === 'GET') {
+      await handleGetDashboard(req, res);
+      return;
+    }
+
+    // GET /v1/dashboard/alerts - All alerts with pagination
+    if (pathname === '/v1/dashboard/alerts' && method === 'GET') {
+      await handleGetDashboardAlerts(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Owner Billing Routes (Phase 12 - Firebase Auth)
+    // ==========================================================================
+
+    // GET /owner/billing/summary - Get billing summary (owner only)
+    if (pathname === '/owner/billing/summary' && method === 'GET') {
+      await handleGetBillingSummary(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Notification Preferences Routes (Phase 10 - Firebase Auth)
+    // ==========================================================================
+
+    // GET /v1/me/preferences/notifications - Get notification preferences
+    if (pathname === '/v1/me/preferences/notifications' && method === 'GET') {
+      await handleGetNotificationPreferences(req, res);
+      return;
+    }
+
+    // PUT /v1/me/preferences/notifications - Update notification preferences
+    if (pathname === '/v1/me/preferences/notifications' && method === 'PUT') {
+      await handleUpdateNotificationPreferences(req, res);
+      return;
+    }
+
+    // POST /v1/me/preferences/notifications/test - Send test notification
+    if (pathname === '/v1/me/preferences/notifications/test' && method === 'POST') {
+      await handleSendTestNotification(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Billing Routes (Phase 12 - Billing Backend)
+    // ==========================================================================
+
+    // GET /owner/billing/summary - Get billing summary (owner only)
+    if (pathname === '/owner/billing/summary' && method === 'GET') {
+      await handleGetBillingSummary(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Onboarding Routes (Phase 14 - Customer Onboarding Flow)
+    // ==========================================================================
+
+    // POST /orgs/self/projects - Create first project
+    if (pathname === '/orgs/self/projects' && method === 'POST') {
+      await withAuth(req, res, handleCreateProject);
+      return;
+    }
+
+    // GET /orgs/self/projects - List projects
+    if (pathname === '/orgs/self/projects' && method === 'GET') {
+      await withAuth(req, res, handleListProjects);
+      return;
+    }
+
+    // POST /projects/:id/sample-source - Attach sample dataset
+    const projectId = extractProjectId(pathname);
+    if (projectId && pathname === `/projects/${projectId}/sample-source` && method === 'POST') {
+      await withAuth(req, res, (req, res, auth) => handleAttachSampleSource(req, res, auth, projectId));
+      return;
+    }
+
+    // POST /projects/:id/first-forecast - Run guided first forecast
+    if (projectId && pathname === `/projects/${projectId}/first-forecast` && method === 'POST') {
+      await withAuth(req, res, (req, res, auth) => handleRunFirstForecast(req, res, auth, projectId));
+      return;
+    }
+
+    // ==========================================================================
+    // Invitation Routes (Phase 15 - Team Access & RBAC)
+    // ==========================================================================
+
+    // POST /orgs/self/invitations - Create invitation (admin+)
+    if (pathname === '/orgs/self/invitations' && method === 'POST') {
+      await handleCreateInvitation(req, res);
+      return;
+    }
+
+    // GET /orgs/self/invitations - List pending invitations (admin+)
+    if (pathname === '/orgs/self/invitations' && method === 'GET') {
+      await handleListInvitations(req, res);
+      return;
+    }
+
+    // DELETE /orgs/self/invitations/:id - Cancel invitation (admin+)
+    const invitationId = extractInvitationId(pathname);
+    if (invitationId && method === 'DELETE') {
+      await handleCancelInvitation(req, res, invitationId);
+      return;
+    }
+
+    // POST /invitations/:token/accept - Accept invitation (public with Firebase auth)
+    const invitationToken = extractInvitationToken(pathname);
+    if (invitationToken && method === 'POST') {
+      await handleAcceptInvitation(req, res, invitationToken);
+      return;
+    }
+
+    // ==========================================================================
+    // Audit Routes (Phase 15 - Team Access & RBAC)
+    // ==========================================================================
+
+    // GET /orgs/self/audit-logs - Query audit logs (admin+)
+    if (pathname === '/orgs/self/audit-logs' && method === 'GET') {
+      await handleGetAuditLogs(req, res);
+      return;
+    }
+
+    // ==========================================================================
+    // Incident Routes (Phase 16 - Smarter Alerts: Correlation & Grouping)
+    // ==========================================================================
+
+    // GET /orgs/self/incidents - List incidents
+    if (pathname === '/orgs/self/incidents' && method === 'GET') {
+      await withAuth(req, res, handleListIncidents);
+      return;
+    }
+
+    // GET /orgs/self/incidents/:id - Get incident detail
+    // POST /orgs/self/incidents/:id/acknowledge - Acknowledge incident
+    // POST /orgs/self/incidents/:id/resolve - Resolve incident
+    const incidentId = extractIncidentId(pathname);
+    if (incidentId) {
+      if (pathname === `/orgs/self/incidents/${incidentId}` && method === 'GET') {
+        await withAuth(req, res, (req, res, auth) => handleGetIncident(req, res, auth, incidentId));
+        return;
+      }
+      if (pathname === `/orgs/self/incidents/${incidentId}/acknowledge` && method === 'POST') {
+        await withAuth(req, res, (req, res, auth) => handleAcknowledgeIncident(req, res, auth, incidentId));
+        return;
+      }
+      if (pathname === `/orgs/self/incidents/${incidentId}/resolve` && method === 'POST') {
+        await withAuth(req, res, (req, res, auth) => handleResolveIncident(req, res, auth, incidentId));
+        return;
+      }
+    }
+
+    // ==========================================================================
+    // Agent Routes (Phase 17 - Operator Assistant Agent)
+    // ==========================================================================
+
+    // GET /v1/agent/status - Get agent system status
+    if (isAgentStatusPath(pathname) && method === 'GET') {
+      await withAuth(req, res, handleGetAgentStatus);
+      return;
+    }
+
+    // POST /v1/incidents/:id/summary - Generate AI summary for incident
+    const summaryIncidentId = extractIncidentIdForSummary(pathname);
+    if (summaryIncidentId && method === 'POST') {
+      await withAuth(req, res, (req, res, auth) => handleGenerateIncidentSummary(req, res, auth, summaryIncidentId));
+      return;
+    }
+
+    // ==========================================================================
+    // Demo Routes (Phase E2E - Single-Metric Forecast Demo)
+    // ==========================================================================
+
+    // POST /v1/demo/ingest - Ingest time series data for demo
+    if (pathname === '/v1/demo/ingest' && method === 'POST') {
+      await withAuth(req, res, handleDemoIngest);
+      return;
+    }
+
+    // POST /v1/demo/forecast - Run forecast on demo metric
+    if (pathname === '/v1/demo/forecast' && method === 'POST') {
+      await withAuth(req, res, handleDemoForecast);
+      return;
+    }
+
+    // GET /v1/demo/metric - Get metric data with latest forecast
+    if (pathname === '/v1/demo/metric' && method === 'GET') {
+      await withAuth(req, res, handleDemoMetricGet);
+      return;
+    }
+
+    // GET /v1/demo/backends - List available forecast backends
+    if (pathname === '/v1/demo/backends' && method === 'GET') {
+      await withAuth(req, res, handleDemoBackendsList);
+      return;
+    }
+
     // Method not allowed for known paths
     if (pathname.startsWith('/v1/')) {
       handleMethodNotAllowed(res);
@@ -363,8 +687,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise
 
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('IntentVision API Server v0.5.0');
-  console.log('Phase 5: Customer Onboarding + Org/API Key Flow');
+  console.log('IntentVision API Server v0.17.0');
+  console.log('Phase 17: Operator Assistant Agent');
   console.log('========================================');
   console.log(`Environment: ${NODE_ENV}`);
   console.log(`Port: ${PORT}`);
@@ -427,6 +751,41 @@ async function main(): Promise<void> {
     console.log('  POST   /v1/internal/organizations/:orgId/apiKeys  - Create key');
     console.log('  GET    /v1/internal/organizations/:orgId/apiKeys  - List keys');
     console.log('  DELETE /v1/internal/organizations/:orgId/apiKeys/:keyId - Revoke key');
+    console.log('');
+    console.log('Smoke Test Endpoints (Phase 9 - Cloud Smoke Tests):');
+    console.log('  POST   /v1/internal/smoke              - Run smoke test');
+    console.log('  GET    /v1/internal/smoke/:runId       - Get smoke test result');
+    console.log('');
+    console.log('Admin Usage Endpoints (Phase 11 - Usage Metering):');
+    console.log('  GET    /admin/orgs/:orgId/usage/today    - Today\'s usage');
+    console.log('  GET    /admin/orgs/:orgId/usage/last-30d - Last 30 days usage');
+    console.log('  GET    /admin/orgs/:orgId/usage/overview - Comprehensive overview');
+    console.log('');
+    console.log('Tenant Onboarding Endpoints (Phase 10 - Sellable Alpha):');
+    console.log('  POST   /v1/tenants                     - Create tenant (public)');
+    console.log('  GET    /v1/tenants/:slug               - Get tenant info');
+    console.log('');
+    console.log('Dashboard Endpoints (Phase 10 - Firebase Auth):');
+    console.log('  GET    /v1/dashboard                   - Dashboard overview');
+    console.log('  GET    /v1/dashboard/alerts            - All alerts');
+    console.log('');
+    console.log('Notification Preferences (Phase 10 - Firebase Auth):');
+    console.log('  GET    /v1/me/preferences/notifications     - Get preferences');
+    console.log('  PUT    /v1/me/preferences/notifications     - Update preferences');
+    console.log('  POST   /v1/me/preferences/notifications/test - Test notification');
+    console.log('');
+    console.log('Billing Endpoints (Phase 12 - Billing Backend):');
+    console.log('  GET    /owner/billing/summary              - Get billing summary (owner only)');
+    console.log('');
+    console.log('Agent Endpoints (Phase 17 - Operator Assistant Agent):');
+    console.log('  GET    /v1/agent/status                    - Get agent system status');
+    console.log('  POST   /v1/incidents/:id/summary           - Generate AI incident summary');
+    console.log('');
+    console.log('Demo Endpoints (Phase E2E - Single-Metric Forecast):');
+    console.log('  POST   /v1/demo/ingest       - Ingest demo metric data');
+    console.log('  POST   /v1/demo/forecast     - Run forecast on demo metric');
+    console.log('  GET    /v1/demo/metric       - Get metric with latest forecast');
+    console.log('  GET    /v1/demo/backends     - List available forecast backends');
     console.log('');
     console.log('Scope Requirements:');
     console.log('  ingest:write  - POST /v1/ingest/*');
