@@ -58,7 +58,8 @@ terraform apply -var-file=environments/production/terraform.tfvars
 
 ```
 infrastructure/terraform/
-├── main.tf                 # Main configuration
+├── main.tf                 # Main configuration (Cloud Run, AR, SA)
+├── secrets.tf              # Secret Manager resources
 ├── variables.tf            # Input variables
 ├── outputs.tf              # Output values
 ├── versions.tf             # Provider versions
@@ -79,6 +80,26 @@ infrastructure/terraform/
 | Artifact Registry | Container images |
 | Service Account | Cloud Run identity |
 | IAM Bindings | Firestore, Secret Manager access |
+| Secret Manager Secrets | Turso, Nixtla, Resend credentials |
+
+## Secrets
+
+Secrets are created empty by Terraform. Set values manually:
+
+```bash
+# Set a secret value
+echo -n "your-value" | gcloud secrets versions add staging-turso-url --data-file=-
+
+# List secrets
+gcloud secrets list --filter="labels.app=intentvision"
+```
+
+| Secret Name | Purpose |
+|-------------|---------|
+| `{env}-turso-url` | Turso database URL |
+| `{env}-turso-token` | Turso auth token |
+| `{env}-nixtla-api-key` | Nixtla TimeGPT API key |
+| `{env}-resend-api-key` | Resend email API key |
 
 ## State Management
 

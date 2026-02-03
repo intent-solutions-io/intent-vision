@@ -64,12 +64,8 @@ resource "google_project_iam_member" "firestore_user" {
   member  = "serviceAccount:${google_service_account.cloud_run.email}"
 }
 
-# Grant Secret Manager access
-resource "google_project_iam_member" "secret_accessor" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
-}
+# Note: Secret Manager access is granted per-secret in secrets.tf
+# for least-privilege (no project-wide secretAccessor role)
 
 # Cloud Run service
 resource "google_cloud_run_v2_service" "api" {
