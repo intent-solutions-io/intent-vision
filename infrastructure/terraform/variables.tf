@@ -45,22 +45,9 @@ variable "cloud_run_max_instances" {
   default     = 10
 }
 
-# Domain configuration
-variable "domain" {
-  description = "Custom domain for the API"
+# Container image configuration
+variable "image_tag" {
+  description = "Container image tag (use git SHA or semver, not 'latest')"
   type        = string
-  default     = ""
-}
-
-# Feature flags
-variable "enable_cdn" {
-  description = "Enable Cloud CDN for static assets"
-  type        = bool
-  default     = false
-}
-
-variable "enable_armor" {
-  description = "Enable Cloud Armor WAF"
-  type        = bool
-  default     = false
+  default     = "latest"  # Override in CI with commit SHA
 }

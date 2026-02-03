@@ -56,6 +56,8 @@ resource "google_service_account" "cloud_run" {
 }
 
 # Grant Firestore access to the service account
+# Note: Using project-level IAM for simplicity. For multi-team environments,
+# consider resource-specific grants or google_project_iam_binding.
 resource "google_project_iam_member" "firestore_user" {
   project = var.project_id
   role    = "roles/datastore.user"
@@ -84,7 +86,7 @@ resource "google_cloud_run_v2_service" "api" {
     }
 
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/intentvision/api:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/intentvision/api:${var.image_tag}"
 
       resources {
         limits = {
