@@ -105,7 +105,9 @@ gcloud run services update intentvision-api-{env} \
   --update-env-vars=ROTATION_TRIGGER=$(date +%s)
 
 # Verify health
-curl https://{env-url}/health
+# Staging: https://stg.intentvision.intent-solutions.io/health
+# Production: https://api.intentvision.io/health
+curl https://{your-environment-url}/health
 ```
 
 ### 4. Disable Old Version (After Verification)
@@ -130,13 +132,13 @@ If a secret is compromised:
 # 2. Add new version
 echo -n "new-value" | gcloud secrets versions add {secret-name} --data-file=-
 
-# 3. Force redeploy
-gcloud run services update intentvision-api-production \
+# 3. Force redeploy (replace {env} with staging or production)
+gcloud run services update intentvision-api-{env} \
   --region=us-central1 \
   --update-env-vars=EMERGENCY_ROTATION=$(date +%s)
 
-# 4. Destroy compromised version immediately
-gcloud secrets versions destroy {compromised-version} --secret={secret-name}
+# 4. Destroy compromised version (find ID via: gcloud secrets versions list {secret-name})
+gcloud secrets versions destroy {version-id} --secret={secret-name}
 
 # 5. Audit access logs
 gcloud logging read 'resource.type="secretmanager.googleapis.com/Secret"' --limit=100
