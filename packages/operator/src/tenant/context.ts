@@ -10,7 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import type { ApiKey } from '../auth/api-key.js';
+import type { ApiKey } from '../auth/api-keys.js';
 
 // =============================================================================
 // Types

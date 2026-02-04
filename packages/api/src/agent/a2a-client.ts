@@ -95,7 +95,7 @@ export class A2AGatewayClient {
    */
   async health(): Promise<GatewayHealth> {
     const response = await this.fetch('/health');
-    return response as GatewayHealth;
+    return response as unknown as GatewayHealth;
   }
 
   // ===========================================================================
@@ -107,7 +107,7 @@ export class A2AGatewayClient {
    */
   async listAgents(): Promise<string[]> {
     const response = await this.fetch('/agents');
-    return response as string[];
+    return response as unknown as string[];
   }
 
   /**
@@ -115,7 +115,7 @@ export class A2AGatewayClient {
    */
   async getAgentCard(agentName: string): Promise<AgentCard> {
     const response = await this.fetch(`/agents/${agentName}/.well-known/agent-card.json`);
-    return response as AgentCard;
+    return response as unknown as AgentCard;
   }
 
   // ===========================================================================
@@ -130,7 +130,7 @@ export class A2AGatewayClient {
       method: 'POST',
       body: JSON.stringify(request),
     });
-    return response as TaskStatus;
+    return response as unknown as TaskStatus;
   }
 
   // ===========================================================================
@@ -148,7 +148,7 @@ export class A2AGatewayClient {
       method: 'POST',
       body: JSON.stringify(request),
     });
-    return response as ChatResponse;
+    return response as unknown as ChatResponse;
   }
 
   // ===========================================================================
@@ -243,7 +243,7 @@ export class A2AGatewayClient {
         );
       }
 
-      return await response.json();
+      return await response.json() as Record<string, unknown>;
     } catch (error) {
       clearTimeout(timeoutId);
 
