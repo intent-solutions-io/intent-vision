@@ -143,10 +143,9 @@ export class WebhookHandler {
       const allErrors = [
         ...validation.errors,
         ...normalizationFailures.map((f) => ({
-          index: -1,
-          metric_key: f.metric.metric_key,
+          index: f.index,
           code: 'SCHEMA_VALIDATION_FAILED' as const,
-          message: f.error,
+          message: f.errors.join('; '),
         })),
         ...storeResult.errors.map((e) => ({
           index: -1,
