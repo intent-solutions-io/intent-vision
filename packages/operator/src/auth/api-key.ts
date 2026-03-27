@@ -207,7 +207,7 @@ export class ApiKeyManager {
       args: [orgId],
     });
 
-    return result.rows.map((row) => ({
+    return result.rows.map((row: Record<string, unknown>) => ({
       keyId: row.key_id as string,
       keyHash: row.key_hash as string,
       orgId: row.org_id as string,

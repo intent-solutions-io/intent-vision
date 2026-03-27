@@ -7,7 +7,7 @@
  * Tests response structure without requiring external dependencies.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ServerResponse } from 'http';
 import {
   handleBasicHealth,

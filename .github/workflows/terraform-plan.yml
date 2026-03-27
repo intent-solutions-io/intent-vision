@@ -14,9 +14,10 @@ on:
     branches: [main]
     paths:
       - 'infrastructure/terraform/**'
-  schedule:
-    # Run daily at 6 AM UTC for drift detection
-    - cron: '0 6 * * *'
+  # schedule disabled — burns Actions minutes
+  # schedule:
+  #   # Run daily at 6 AM UTC for drift detection
+  #   - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       environment:

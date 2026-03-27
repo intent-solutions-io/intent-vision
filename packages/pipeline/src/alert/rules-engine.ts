@@ -533,7 +533,7 @@ export class RulesEngine {
         current_value: metric.value,
         recent_values: context.series?.data_points.slice(-5) || [],
       },
-      trigger_details: triggerDetails as AlertTrigger['trigger_details'],
+      trigger_details: triggerDetails as unknown as AlertTrigger['trigger_details'],
       routing: rule.routing,
       lifecycle: {
         triggered_at: now,

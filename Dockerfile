@@ -31,6 +31,7 @@ RUN npm ci --include=dev
 
 # Copy source code
 COPY packages/ ./packages/
+COPY db/ ./db/
 COPY tsconfig*.json ./
 
 # Build all packages in dependency order

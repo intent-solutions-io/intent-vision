@@ -178,6 +178,9 @@ export interface TimeSeries {
 
     /** Detected resolution (e.g., "1m", "5m", "1h") */
     resolution?: string;
+
+    /** Aggregation method (e.g., "avg", "sum", "max") */
+    aggregation?: string;
   };
 }
 

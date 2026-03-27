@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "references": [
+    { "path": "./packages/contracts" },
+    { "path": "./packages/pipeline" },
+    { "path": "./packages/operator" },
+    { "path": "./packages/api" },
+    { "path": "./packages/sdk" },
+    { "path": "./packages/web" },
+    { "path": "./packages/agent" },
+    { "path": "./packages/functions" }
+  ],
+  "files": []
+}

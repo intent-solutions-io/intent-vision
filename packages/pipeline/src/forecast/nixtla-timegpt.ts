@@ -339,7 +339,7 @@ export class NixtlaTimeGPTBackend implements ForecastBackend {
       throw new Error(`TimeGPT API error: ${response.status} - ${errorText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<TimeGPTForecastResponse>;
   }
 
   private async callTimeGPTAnomaly(
@@ -366,7 +366,7 @@ export class NixtlaTimeGPTBackend implements ForecastBackend {
       throw new Error(`TimeGPT Anomaly API error: ${response.status} - ${errorText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<TimeGPTAnomalyResponse>;
   }
 
   private generateMockForecast(

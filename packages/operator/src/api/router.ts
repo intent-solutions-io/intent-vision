@@ -185,7 +185,7 @@ export function createDefaultRouter(): ApiRouter {
 
   // Create API key (admin scope required)
   router.route('POST', '/api/v1/keys', async (req, ctx) => {
-    const body = req.body as { name?: string; scopes?: string[]; expires_in_days?: number };
+    const body = req.body as { name?: string; roles?: string[]; expires_in_days?: number };
     if (!body?.name) {
       return {
         status: 400,
@@ -197,7 +197,7 @@ export function createDefaultRouter(): ApiRouter {
     const { key, rawKey } = await manager.createKey({
       orgId: ctx.orgId,
       name: body.name,
-      scopes: body.scopes,
+      roles: body.roles,
       expiresInDays: body.expires_in_days,
     });
 
@@ -207,7 +207,7 @@ export function createDefaultRouter(): ApiRouter {
         key_id: key.keyId,
         raw_key: rawKey,
         name: key.name,
-        scopes: key.scopes,
+        roles: key.roles,
         expires_at: key.expiresAt,
         message: 'Store this key securely - it will not be shown again',
       },
