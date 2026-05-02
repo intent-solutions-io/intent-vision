@@ -55,7 +55,7 @@ export class TursoPool {
   constructor(config: TursoPoolConfig) {
     this.config = {
       url: config.url,
-      authToken: config.authToken,
+      authToken: config.authToken ?? '',
       poolSize: config.poolSize ?? 5,
       connectionTimeoutMs: config.connectionTimeoutMs ?? 10000,
       idleTimeoutMs: config.idleTimeoutMs ?? 300000, // 5 minutes

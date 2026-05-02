@@ -47,6 +47,8 @@ export interface AuthResult {
 export interface AuthMiddlewareConfig {
   /** Required permissions for this endpoint */
   requiredPermissions?: Permission[];
+  /** Required scopes for this endpoint */
+  requiredScopes?: string[];
   /** Allow unauthenticated requests */
   allowAnonymous?: boolean;
 }

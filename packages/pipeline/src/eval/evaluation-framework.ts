@@ -488,12 +488,14 @@ export class BenchmarkGenerator {
     return {
       name,
       series: {
-        series_id: `benchmark-${name}`,
         org_id: 'benchmark-org',
         metric_key: 'benchmark.metric',
         dimensions: {},
         data_points: dataPoints,
         metadata: {
+          start_time: dataPoints[0]?.timestamp ?? new Date().toISOString(),
+          end_time: dataPoints[dataPoints.length - 1]?.timestamp ?? new Date().toISOString(),
+          count: dataPoints.length,
           resolution: '1h',
           aggregation: 'avg',
         },
@@ -551,12 +553,14 @@ export class BenchmarkGenerator {
     return {
       name,
       series: {
-        series_id: `benchmark-${name}`,
         org_id: 'benchmark-org',
         metric_key: 'benchmark.metric',
         dimensions: {},
         data_points: dataPoints,
         metadata: {
+          start_time: dataPoints[0]?.timestamp ?? new Date().toISOString(),
+          end_time: dataPoints[dataPoints.length - 1]?.timestamp ?? new Date().toISOString(),
+          count: dataPoints.length,
           resolution: '5m',
           aggregation: 'avg',
         },
@@ -594,12 +598,14 @@ export class BenchmarkGenerator {
     return {
       name: 'level-shift',
       series: {
-        series_id: 'benchmark-level-shift',
         org_id: 'benchmark-org',
         metric_key: 'benchmark.level_shift',
         dimensions: {},
         data_points: dataPoints,
         metadata: {
+          start_time: dataPoints[0]?.timestamp ?? new Date().toISOString(),
+          end_time: dataPoints[dataPoints.length - 1]?.timestamp ?? new Date().toISOString(),
+          count: dataPoints.length,
           resolution: '1h',
           aggregation: 'avg',
         },

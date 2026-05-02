@@ -73,3 +73,7 @@ crash.log
 # Keep these AgentFS items
 !.agentfs/snapshots/
 !.agentfs/config.yaml
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db

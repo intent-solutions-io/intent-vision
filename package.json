@@ -23,7 +23,7 @@
     "db:migrate": "npx tsx db/migrate.ts run",
     "db:status": "npx tsx db/migrate.ts status",
     "arv": "./scripts/ci/arv-check.sh",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc -p packages/contracts --noEmit && tsc -p packages/pipeline --noEmit && tsc -p packages/sdk --noEmit"
   },
   "repository": {
     "type": "git",
